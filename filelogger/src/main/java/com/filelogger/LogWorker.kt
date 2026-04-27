@@ -1,21 +1,22 @@
 package com.filelogger
 
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal object LogWorker {
 
-    private val queue = LinkedBlockingQueue<LogTask>()
+    private val queue = LinkedBlockingQueue<LogRecord>()
+    private val started = AtomicBoolean(false)
 
     fun start() {
+        if (!started.compareAndSet(false, true)) {
+            return
+        }
+
         Thread {
             while (true) {
                 val task = queue.take()
-
-                LoggerEngine.writeToFile(
-                    task.level,
-                    task.tag,
-                    task.message
-                )
+                LoggerEngine.writeToFile(task)
             }
         }.apply {
             isDaemon = true
@@ -23,13 +24,7 @@ internal object LogWorker {
         }.start()
     }
 
-    fun enqueue(task: LogTask) {
+    fun enqueue(task: LogRecord) {
         queue.offer(task)
     }
 }
-
-internal data class LogTask(
-    val level: String,
-    val tag: String,
-    val message: String
-)

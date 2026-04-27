@@ -4,11 +4,17 @@ import android.util.Log
 import com.google.gson.GsonBuilder
 import java.io.File
 import java.io.FileOutputStream
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-internal object LoggerEngine {
+internal interface LogWriter {
+    fun write(record: LogRecord)
+}
+
+internal object LoggerEngine : LogWriter {
 
     private val fileLock = Any()
 
@@ -19,44 +25,40 @@ internal object LoggerEngine {
     private val fmt =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
-    fun log(level: String, tag: String, message: String) {
+    override fun write(record: LogRecord) {
+        val logcatMessage = buildLogcatMessage(record)
         val size = 4000
         var index = 0
 
-        while (index < message.length) {
-            val end = (index + size).coerceAtMost(message.length)
-            val part = message.substring(index, end)
+        while (index < logcatMessage.length) {
+            val end = (index + size).coerceAtMost(logcatMessage.length)
+            val part = logcatMessage.substring(index, end)
 
-            when (level) {
-                "D" -> Log.d(tag, part)
-                "W" -> Log.w(tag, part)
-                "E" -> Log.e(tag, part)
-                else -> Log.i(tag, part)
+            when (record.level) {
+                LogLevel.DEBUG -> Log.d(record.tag, part)
+                LogLevel.WARN -> Log.w(record.tag, part)
+                LogLevel.ERROR -> Log.e(record.tag, part)
             }
-
-            LogWorker.enqueue(
-                LogTask(level, tag, part)
-            )
 
             index = end
         }
+
+        LogWorker.enqueue(record)
     }
 
-    internal fun writeToFile(
-        level: String,
-        tag: String,
-        message: String
-    ) {
+    internal fun writeToFile(record: LogRecord) {
         synchronized(fileLock) {
             val file = getLogFile()
 
             val json = gson.toJson(
                 mapOf(
-                    "time" to fmt.format(Date()),
-                    "level" to level,
-                    "tag" to tag,
-                    "thread" to Thread.currentThread().name,
-                    "message" to message
+                    "time" to fmt.format(Date(record.timestampMillis)),
+                    "level" to record.level.shortName,
+                    "tag" to record.tag,
+                    "message" to record.message,
+                    "throwable" to record.throwable?.stackTraceString(),
+                    "thread" to record.threadName,
+                    "process" to record.processName
                 )
             ) + "\n"
 
@@ -68,6 +70,14 @@ internal object LoggerEngine {
                 Log.e("FileLogger", "write failed", e)
             }
         }
+    }
+
+    private fun buildLogcatMessage(record: LogRecord): String {
+        val throwableMessage = record.throwable?.stackTraceString()
+            ?.let { "\n$it" }
+            .orEmpty()
+
+        return record.message + throwableMessage
     }
 
     private fun getLogFile(): File {
@@ -85,4 +95,10 @@ internal object LoggerEngine {
 
         return file
     }
+}
+
+private fun Throwable.stackTraceString(): String {
+    val writer = StringWriter()
+    printStackTrace(PrintWriter(writer))
+    return writer.toString()
 }

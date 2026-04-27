@@ -1,12 +1,12 @@
 package com.filelogger
 
 import android.content.Context
-import android.util.Log
 
-object FileLogger {
+object FileLogger : Logger {
 
     internal lateinit var context: Context
     internal var config: LoggerConfig = LoggerConfig()
+    private lateinit var delegate: Logger
 
     fun init(
         context: Context,
@@ -16,20 +16,21 @@ object FileLogger {
         this.config = config
 
         LogWorker.start()
+        delegate = DefaultLogger(
+            logWriter = LoggerEngine,
+            processNameProvider = { this.context.packageName }
+        )
     }
 
-    fun d(tag: String, msg: String) {
-        LoggerEngine.log("D", tag, msg)
+    override fun d(tag: String, msg: String) {
+        delegate.d(tag, msg)
     }
 
-    fun w(tag: String, msg: String) {
-        LoggerEngine.log("W", tag, msg)
+    override fun w(tag: String, msg: String) {
+        delegate.w(tag, msg)
     }
 
-    fun e(tag: String, msg: String, tr: Throwable? = null) {
-        val message =
-            msg + (tr?.let { "\n${Log.getStackTraceString(it)}" } ?: "")
-
-        LoggerEngine.log("E", tag, message)
+    override fun e(tag: String, msg: String, tr: Throwable?) {
+        delegate.e(tag, msg, tr)
     }
 }
