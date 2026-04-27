@@ -1,7 +1,7 @@
 package com.filelogger
 
 class DefaultLogger internal constructor(
-    private val logWriter: LogWriter,
+    private val destination: LogDestination,
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
     private val threadNameProvider: () -> String = { Thread.currentThread().name },
     private val processNameProvider: () -> String
@@ -25,7 +25,7 @@ class DefaultLogger internal constructor(
         message: String,
         throwable: Throwable? = null
     ) {
-        logWriter.write(
+        destination.write(
             LogRecord(
                 timestampMillis = currentTimeMillis(),
                 level = level,

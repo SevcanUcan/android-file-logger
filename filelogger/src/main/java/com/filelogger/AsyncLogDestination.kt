@@ -3,28 +3,31 @@ package com.filelogger
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal object LogWorker {
+internal class AsyncLogDestination(
+    private val delegate: LogDestination,
+    private val workerName: String = "FileLogger-Worker"
+) : LogDestination {
 
     private val queue = LinkedBlockingQueue<LogRecord>()
     private val started = AtomicBoolean(false)
 
-    fun start() {
+    override fun write(record: LogRecord) {
+        startIfNeeded()
+        queue.offer(record)
+    }
+
+    private fun startIfNeeded() {
         if (!started.compareAndSet(false, true)) {
             return
         }
 
         Thread {
             while (true) {
-                val task = queue.take()
-                LoggerEngine.writeToFile(task)
+                delegate.write(queue.take())
             }
         }.apply {
             isDaemon = true
-            name = "FileLogger-Worker"
+            name = workerName
         }.start()
-    }
-
-    fun enqueue(task: LogRecord) {
-        queue.offer(task)
     }
 }

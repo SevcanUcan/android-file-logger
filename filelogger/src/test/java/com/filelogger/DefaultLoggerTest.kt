@@ -8,9 +8,9 @@ class DefaultLoggerTest {
 
     @Test
     fun `debug log creates structured record`() {
-        val writer = RecordingLogWriter()
+        val destination = RecordingDestination()
         val logger = DefaultLogger(
-            logWriter = writer,
+            destination = destination,
             currentTimeMillis = { 42L },
             threadNameProvider = { "worker-1" },
             processNameProvider = { "com.test.app" }
@@ -18,7 +18,7 @@ class DefaultLoggerTest {
 
         logger.d("Startup", "Logger is ready")
 
-        val record = writer.singleRecord()
+        val record = destination.singleRecord()
         assertEquals(42L, record.timestampMillis)
         assertEquals(LogLevel.DEBUG, record.level)
         assertEquals("Startup", record.tag)
@@ -30,22 +30,22 @@ class DefaultLoggerTest {
 
     @Test
     fun `error log keeps throwable separate from message`() {
-        val writer = RecordingLogWriter()
+        val destination = RecordingDestination()
         val logger = DefaultLogger(
-            logWriter = writer,
+            destination = destination,
             processNameProvider = { "com.test.app" }
         )
         val throwable = IllegalArgumentException("broken")
 
         logger.e("Sync", "Upload failed", throwable)
 
-        val record = writer.singleRecord()
+        val record = destination.singleRecord()
         assertEquals(LogLevel.ERROR, record.level)
         assertEquals("Upload failed", record.message)
         assertSame(throwable, record.throwable)
     }
 
-    private class RecordingLogWriter : LogWriter {
+    private class RecordingDestination : LogDestination {
         private val records = mutableListOf<LogRecord>()
 
         override fun write(record: LogRecord) {

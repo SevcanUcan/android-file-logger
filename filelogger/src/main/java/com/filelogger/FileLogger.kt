@@ -15,9 +15,11 @@ object FileLogger : Logger {
         this.context = context.applicationContext
         this.config = config
 
-        LogWorker.start()
         delegate = DefaultLogger(
-            logWriter = LoggerEngine,
+            destination = LoggerEngine.createDefaultDestination(
+                filesDirProvider = { this.context.filesDir },
+                configProvider = { this.config }
+            ),
             processNameProvider = { this.context.packageName }
         )
     }
