@@ -1,8 +1,10 @@
 package com.filelogger
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.io.File
+import kotlin.io.path.createTempDirectory
 
 class FileLogDestinationTest {
 
@@ -25,5 +27,30 @@ class FileLogDestinationTest {
         destination.write(record)
 
         assertEquals("E|FileLogger|Upload failed\n", logFile.readText())
+    }
+
+    @Test
+    fun `file destination rotates when max size is exceeded`() {
+        val directory = createTempDirectory("filelogger-destination").toFile()
+        val logFile = File(directory, "app.log")
+        val destination = FileLogDestination(
+            fileProvider = { logFile },
+            formatter = object : LogFormatter {
+                override fun format(record: LogRecord): String {
+                    return record.message + "\n"
+                }
+            },
+            rotationPolicy = FileRotationPolicy(
+                maxFileSize = 10,
+                maxBackupFiles = 2
+            )
+        )
+
+        destination.write(testRecord(message = "123456"))
+        destination.write(testRecord(message = "abcdef"))
+
+        assertEquals("abcdef\n", logFile.readText())
+        assertEquals("123456\n", File(directory, "app.log.1").readText())
+        assertFalse(File(directory, "app.log.2").exists())
     }
 }

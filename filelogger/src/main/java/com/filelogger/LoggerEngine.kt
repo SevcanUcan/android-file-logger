@@ -16,7 +16,11 @@ internal object LoggerEngine {
                         configProvider().logFileName
                     )
                 },
-                formatter = configProvider().logFormatter
+                formatter = configProvider().logFormatter,
+                rotationPolicy = FileRotationPolicy(
+                    maxFileSize = configProvider().maxFileSize,
+                    maxBackupFiles = configProvider().maxBackupFiles
+                )
             )
         )
 
