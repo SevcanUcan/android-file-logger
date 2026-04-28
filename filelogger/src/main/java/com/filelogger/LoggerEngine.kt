@@ -15,7 +15,8 @@ internal object LoggerEngine {
                         File(filesDirProvider(), configProvider().logFolder),
                         configProvider().logFileName
                     )
-                }
+                },
+                formatter = configProvider().logFormatter
             )
         )
 
