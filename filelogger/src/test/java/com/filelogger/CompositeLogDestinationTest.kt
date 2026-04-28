@@ -1,6 +1,7 @@
 package com.filelogger
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CompositeLogDestinationTest {
@@ -18,11 +19,36 @@ class CompositeLogDestinationTest {
         assertEquals(listOf(record), second.records)
     }
 
+    @Test
+    fun `composite flush delegates to flushable destinations`() {
+        val flushable = RecordingFlushableDestination()
+        val composite = CompositeLogDestination(
+            listOf(
+                RecordingDestination(),
+                flushable
+            )
+        )
+
+        assertTrue(composite.flush(timeoutMillis = 100))
+        assertEquals(1, flushable.flushCallCount)
+    }
+
     private class RecordingDestination : LogDestination {
         val records = mutableListOf<LogRecord>()
 
         override fun write(record: LogRecord) {
             records += record
+        }
+    }
+
+    private class RecordingFlushableDestination : FlushableLogDestination {
+        var flushCallCount: Int = 0
+
+        override fun write(record: LogRecord) = Unit
+
+        override fun flush(timeoutMillis: Long): Boolean {
+            flushCallCount += 1
+            return true
         }
     }
 }
