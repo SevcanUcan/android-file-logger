@@ -39,6 +39,36 @@ class AsyncLogDestinationTest {
     }
 
     @Test
+    fun `flush waits for delegate flush after queued logs are delivered`() {
+        val delegate = RecordingFlushableDestination(flushResult = true)
+        val destination = AsyncLogDestination(
+            delegate = delegate,
+            workerName = "AsyncLogDestinationTest"
+        )
+        val record = testRecord(message = "durable")
+
+        destination.write(record)
+
+        assertTrue(destination.flush(timeoutMillis = 1_000))
+        assertEquals(listOf(record), delegate.records)
+        assertEquals(1, delegate.flushCount)
+    }
+
+    @Test
+    fun `flush fails when delegate flush fails`() {
+        val delegate = RecordingFlushableDestination(flushResult = false)
+        val destination = AsyncLogDestination(
+            delegate = delegate,
+            workerName = "AsyncLogDestinationTest"
+        )
+
+        destination.write(testRecord(message = "not-durable"))
+
+        assertFalse(destination.flush(timeoutMillis = 1_000))
+        assertEquals(1, delegate.flushCount)
+    }
+
+    @Test
     fun `drop oldest removes oldest queued record when queue is full`() {
         val delegate = BlockingDestination()
         val destination = AsyncLogDestination(
@@ -157,6 +187,23 @@ class AsyncLogDestinationTest {
 
         fun release() {
             releaseFirstWrite.countDown()
+        }
+    }
+
+    private class RecordingFlushableDestination(
+        private val flushResult: Boolean
+    ) : FlushableLogDestination {
+        val records = Collections.synchronizedList(mutableListOf<LogRecord>())
+        var flushCount = 0
+            private set
+
+        override fun write(record: LogRecord) {
+            records += record
+        }
+
+        override fun flush(timeoutMillis: Long): Boolean {
+            flushCount += 1
+            return flushResult
         }
     }
 }

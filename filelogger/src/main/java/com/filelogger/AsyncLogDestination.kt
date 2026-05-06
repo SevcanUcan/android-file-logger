@@ -5,6 +5,7 @@ import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 internal class AsyncLogDestination(
     private val delegate: LogDestination,
@@ -29,8 +30,9 @@ internal class AsyncLogDestination(
 
         startIfNeeded()
         val latch = CountDownLatch(1)
+        val result = AtomicReference(true)
         val queued = try {
-            queue.offer(QueueItem.Flush(latch), timeoutMillis, TimeUnit.MILLISECONDS)
+            queue.offer(QueueItem.Flush(latch, result, timeoutMillis), timeoutMillis, TimeUnit.MILLISECONDS)
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
             false
@@ -41,7 +43,7 @@ internal class AsyncLogDestination(
         }
 
         return try {
-            latch.await(timeoutMillis, TimeUnit.MILLISECONDS)
+            latch.await(timeoutMillis, TimeUnit.MILLISECONDS) && result.get()
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
             false
@@ -109,7 +111,10 @@ internal class AsyncLogDestination(
             while (true) {
                 when (val item = queue.take()) {
                     is QueueItem.Record -> delegate.write(item.record)
-                    is QueueItem.Flush -> item.latch.countDown()
+                    is QueueItem.Flush -> {
+                        item.result.set(flushDelegate(item.timeoutMillis))
+                        item.latch.countDown()
+                    }
                 }
             }
         }.apply {
@@ -118,10 +123,20 @@ internal class AsyncLogDestination(
         }.start()
     }
 
+    private fun flushDelegate(timeoutMillis: Long): Boolean {
+        return (delegate as? FlushableLogDestination)
+            ?.flush(timeoutMillis)
+            ?: true
+    }
+
     private sealed interface QueueItem {
         data class Record(val record: LogRecord) : QueueItem
 
-        data class Flush(val latch: CountDownLatch) : QueueItem
+        data class Flush(
+            val latch: CountDownLatch,
+            val result: AtomicReference<Boolean>,
+            val timeoutMillis: Long
+        ) : QueueItem
     }
 
     private companion object {
