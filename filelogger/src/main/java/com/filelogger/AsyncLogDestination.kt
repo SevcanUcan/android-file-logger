@@ -1,21 +1,25 @@
 package com.filelogger
 
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 internal class AsyncLogDestination(
     private val delegate: LogDestination,
-    private val workerName: String = "FileLogger-Worker"
+    private val workerName: String = "FileLogger-Worker",
+    queueCapacity: Int = DEFAULT_QUEUE_CAPACITY,
+    private val overflowStrategy: AsyncOverflowStrategy = AsyncOverflowStrategy.DROP_OLDEST
 ) : FlushableLogDestination {
 
-    private val queue = LinkedBlockingQueue<QueueItem>()
+    private val queue = LinkedBlockingDeque<QueueItem>(queueCapacity)
     private val started = AtomicBoolean(false)
+    private val droppedRecordCount = AtomicLong(0)
 
     override fun write(record: LogRecord) {
         startIfNeeded()
-        queue.offer(QueueItem.Record(record))
+        enqueueRecord(QueueItem.Record(record))
     }
 
     override fun flush(timeoutMillis: Long): Boolean {
@@ -25,7 +29,16 @@ internal class AsyncLogDestination(
 
         startIfNeeded()
         val latch = CountDownLatch(1)
-        queue.offer(QueueItem.Flush(latch))
+        val queued = try {
+            queue.offer(QueueItem.Flush(latch), timeoutMillis, TimeUnit.MILLISECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+
+        if (!queued) {
+            return false
+        }
 
         return try {
             latch.await(timeoutMillis, TimeUnit.MILLISECONDS)
@@ -33,6 +46,58 @@ internal class AsyncLogDestination(
             Thread.currentThread().interrupt()
             false
         }
+    }
+
+    internal fun droppedRecords(): Long {
+        return droppedRecordCount.get()
+    }
+
+    private fun enqueueRecord(item: QueueItem.Record) {
+        when (overflowStrategy) {
+            AsyncOverflowStrategy.DROP_NEWEST -> {
+                if (!queue.offer(item)) {
+                    droppedRecordCount.incrementAndGet()
+                }
+            }
+
+            AsyncOverflowStrategy.DROP_OLDEST -> {
+                if (queue.offer(item)) {
+                    return
+                }
+
+                if (queue.offer(item)) {
+                    return
+                }
+
+                if (removeOldestRecord()) {
+                    droppedRecordCount.incrementAndGet()
+                }
+
+                if (!queue.offer(item)) {
+                    droppedRecordCount.incrementAndGet()
+                }
+            }
+
+            AsyncOverflowStrategy.BLOCK -> {
+                try {
+                    queue.put(item)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    droppedRecordCount.incrementAndGet()
+                }
+            }
+        }
+    }
+
+    private fun removeOldestRecord(): Boolean {
+        val iterator = queue.iterator()
+        while (iterator.hasNext()) {
+            if (iterator.next() is QueueItem.Record) {
+                iterator.remove()
+                return true
+            }
+        }
+        return false
     }
 
     private fun startIfNeeded() {
@@ -57,5 +122,9 @@ internal class AsyncLogDestination(
         data class Record(val record: LogRecord) : QueueItem
 
         data class Flush(val latch: CountDownLatch) : QueueItem
+    }
+
+    private companion object {
+        const val DEFAULT_QUEUE_CAPACITY = 1024
     }
 }

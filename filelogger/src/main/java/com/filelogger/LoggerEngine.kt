@@ -21,7 +21,9 @@ internal object LoggerEngine {
                     maxFileSize = configProvider().maxFileSize,
                     maxBackupFiles = configProvider().maxBackupFiles
                 )
-            )
+            ),
+            queueCapacity = configProvider().asyncQueueCapacity,
+            overflowStrategy = configProvider().asyncOverflowStrategy
         )
 
         return CompositeLogDestination(

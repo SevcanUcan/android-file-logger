@@ -6,5 +6,13 @@ data class LoggerConfig(
     val logFolder: String = "logs",
     val logFileName: String = "app_log.txt",
     val zipPrefix: String = "AppLog",
-    val logFormatter: LogFormatter = JsonLogFormatter()
-)
+    val logFormatter: LogFormatter = JsonLogFormatter(),
+    val asyncQueueCapacity: Int = 1024,
+    val asyncOverflowStrategy: AsyncOverflowStrategy = AsyncOverflowStrategy.DROP_OLDEST
+) {
+    init {
+        require(asyncQueueCapacity > 0) {
+            "asyncQueueCapacity must be greater than zero"
+        }
+    }
+}
