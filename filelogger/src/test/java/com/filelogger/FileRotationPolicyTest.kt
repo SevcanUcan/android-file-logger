@@ -57,4 +57,61 @@ class FileRotationPolicyTest {
         assertEquals("1234", mainFile.readText())
         assertFalse(File(directory, "app.log.1").exists())
     }
+
+    @Test
+    fun `retention deletes backups older than max age`() {
+        val directory = createTempDirectory("filelogger-retention").toFile()
+        val mainFile = File(directory, "app.log").apply {
+            writeText("current")
+            setLastModified(2_000)
+        }
+        val expiredBackup = File(directory, "app.log.1").apply {
+            writeText("expired")
+            setLastModified(500)
+        }
+        val freshBackup = File(directory, "app.log.2").apply {
+            writeText("fresh")
+            setLastModified(1_500)
+        }
+        val policy = FileRotationPolicy(
+            maxFileSize = 100,
+            maxBackupFiles = 3,
+            maxLogAgeMillis = 1_000,
+            currentTimeMillis = { 2_000 }
+        )
+
+        policy.rotateIfNeeded(mainFile, ByteArray(1))
+
+        assertTrue(mainFile.exists())
+        assertFalse(expiredBackup.exists())
+        assertTrue(freshBackup.exists())
+    }
+
+    @Test
+    fun `retention trims oldest backups when total size is exceeded`() {
+        val directory = createTempDirectory("filelogger-retention").toFile()
+        val mainFile = File(directory, "app.log").apply {
+            writeText("12345")
+            setLastModified(4_000)
+        }
+        val oldestBackup = File(directory, "app.log.1").apply {
+            writeText("12345")
+            setLastModified(1_000)
+        }
+        val newerBackup = File(directory, "app.log.2").apply {
+            writeText("12345")
+            setLastModified(2_000)
+        }
+        val policy = FileRotationPolicy(
+            maxFileSize = 100,
+            maxBackupFiles = 3,
+            maxTotalLogSize = 10
+        )
+
+        policy.rotateIfNeeded(mainFile, ByteArray(1))
+
+        assertTrue(mainFile.exists())
+        assertFalse(oldestBackup.exists())
+        assertTrue(newerBackup.exists())
+    }
 }

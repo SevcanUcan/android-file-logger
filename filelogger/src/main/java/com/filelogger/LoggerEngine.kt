@@ -19,7 +19,9 @@ internal object LoggerEngine {
                 formatter = configProvider().logFormatter,
                 rotationPolicy = FileRotationPolicy(
                     maxFileSize = configProvider().maxFileSize,
-                    maxBackupFiles = configProvider().maxBackupFiles
+                    maxBackupFiles = configProvider().maxBackupFiles,
+                    maxTotalLogSize = configProvider().maxTotalLogSize,
+                    maxLogAgeMillis = configProvider().maxLogAgeMillis
                 )
             ),
             queueCapacity = configProvider().asyncQueueCapacity,
