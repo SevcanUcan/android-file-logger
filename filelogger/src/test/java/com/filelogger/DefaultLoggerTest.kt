@@ -45,6 +45,22 @@ class DefaultLoggerTest {
         assertSame(throwable, record.throwable)
     }
 
+    @Test
+    fun `logs below minimum level are skipped`() {
+        val destination = RecordingDestination()
+        val logger = DefaultLogger(
+            destination = destination,
+            processNameProvider = { "com.test.app" },
+            minimumLogLevel = LogLevel.WARN
+        )
+
+        logger.d("Debug", "hidden")
+        logger.w("Warn", "visible")
+
+        assertEquals(1, destination.recordCount())
+        assertEquals(LogLevel.WARN, destination.singleRecord().level)
+    }
+
     private class RecordingDestination : LogDestination {
         private val records = mutableListOf<LogRecord>()
 
@@ -53,5 +69,7 @@ class DefaultLoggerTest {
         }
 
         fun singleRecord(): LogRecord = records.single()
+
+        fun recordCount(): Int = records.size
     }
 }

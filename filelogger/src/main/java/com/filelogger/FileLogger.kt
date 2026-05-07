@@ -22,7 +22,8 @@ object FileLogger : Logger {
         )
         delegate = DefaultLogger(
             destination = destination,
-            processNameProvider = { this.context.packageName }
+            processNameProvider = { this.context.packageName },
+            minimumLogLevel = this.config.minimumLogLevel
         )
     }
 

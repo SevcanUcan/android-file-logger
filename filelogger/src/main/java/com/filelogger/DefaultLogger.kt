@@ -4,7 +4,8 @@ class DefaultLogger internal constructor(
     private val destination: LogDestination,
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
     private val threadNameProvider: () -> String = { Thread.currentThread().name },
-    private val processNameProvider: () -> String
+    private val processNameProvider: () -> String,
+    private val minimumLogLevel: LogLevel = LogLevel.DEBUG
 ) : Logger {
 
     override fun d(tag: String, msg: String) {
@@ -25,6 +26,10 @@ class DefaultLogger internal constructor(
         message: String,
         throwable: Throwable? = null
     ) {
+        if (level.priority < minimumLogLevel.priority) {
+            return
+        }
+
         destination.write(
             LogRecord(
                 timestampMillis = currentTimeMillis(),
