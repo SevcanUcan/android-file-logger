@@ -15,6 +15,7 @@ class LoggerConfigTest {
         assertTrue(config.logFormatter is PlainTextLogFormatter)
         assertEquals(TimeUnit.DAYS.toMillis(10), config.maxLogAgeMillis)
         assertEquals(2_048, config.asyncQueueCapacity)
+        assertEquals(true, config.useProcessSpecificLogFiles)
     }
 
     @Test
@@ -25,5 +26,6 @@ class LoggerConfigTest {
         assertTrue(config.logFormatter is JsonLogFormatter)
         assertEquals(TimeUnit.DAYS.toMillis(7), config.maxLogAgeMillis)
         assertEquals(1_024, config.asyncQueueCapacity)
+        assertEquals(true, config.useProcessSpecificLogFiles)
     }
 }

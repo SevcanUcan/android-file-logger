@@ -6,13 +6,26 @@ internal object LoggerEngine {
 
     fun createDefaultDestination(
         filesDirProvider: () -> File,
-        configProvider: () -> LoggerConfig
+        configProvider: () -> LoggerConfig,
+        packageNameProvider: () -> String,
+        processNameProvider: () -> String
     ): LogDestination {
         val syncFileDestination = FileLogDestination(
             fileProvider = {
+                val config = configProvider()
+                val logFileName = if (config.useProcessSpecificLogFiles) {
+                    ProcessLogFileName.forProcess(
+                        baseFileName = config.logFileName,
+                        packageName = packageNameProvider(),
+                        processName = processNameProvider()
+                    )
+                } else {
+                    config.logFileName
+                }
+
                 File(
-                    File(filesDirProvider(), configProvider().logFolder),
-                    configProvider().logFileName
+                    File(filesDirProvider(), config.logFolder),
+                    logFileName
                 )
             },
             formatter = configProvider().logFormatter,

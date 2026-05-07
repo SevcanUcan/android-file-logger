@@ -14,7 +14,8 @@ data class LoggerConfig(
     val logFormatter: LogFormatter = JsonLogFormatter(),
     val asyncQueueCapacity: Int = 1024,
     val asyncOverflowStrategy: AsyncOverflowStrategy = AsyncOverflowStrategy.DROP_OLDEST,
-    val errorSyncFallbackEnabled: Boolean = true
+    val errorSyncFallbackEnabled: Boolean = true,
+    val useProcessSpecificLogFiles: Boolean = true
 ) {
     init {
         require(asyncQueueCapacity > 0) {

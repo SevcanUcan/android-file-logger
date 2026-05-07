@@ -15,14 +15,17 @@ object FileLogger : Logger {
     ) {
         this.context = context.applicationContext
         this.config = config
+        val processName = ProcessNameResolver.resolve(this.context)
 
         destination = LoggerEngine.createDefaultDestination(
             filesDirProvider = { this.context.filesDir },
-            configProvider = { this.config }
+            configProvider = { this.config },
+            packageNameProvider = { this.context.packageName },
+            processNameProvider = { processName }
         )
         delegate = DefaultLogger(
             destination = destination,
-            processNameProvider = { this.context.packageName },
+            processNameProvider = { processName },
             minimumLogLevel = this.config.minimumLogLevel
         )
     }
