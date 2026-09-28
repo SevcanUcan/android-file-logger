@@ -1,52 +1,287 @@
 package com.filelogger
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.Intent
+import android.content.res.Configuration
+import android.net.Uri
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 object FileLogger : Logger {
 
-    internal lateinit var context: Context
     internal var config: LoggerConfig = LoggerConfig()
-    private lateinit var destination: LogDestination
-    private lateinit var delegate: Logger
+    private var destination: LogDestination? = null
+    private var delegate: Logger? = null
+    private var logDirectory: File? = null
+    private var exportDirectory: File? = null
+    private var packageName: String? = null
+    private var processName: String? = null
+    private var session: LogSession? = null
+    private var recentLogBuffer: RecentLogBuffer? = null
+    private var previousUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
+    private var installedUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
+    private val tagMinimumLevels = ConcurrentHashMap<String, LogLevel>()
+    private val lifecycleCallbackRegistered = AtomicBoolean(false)
+    private val crashHandlerInstalled = AtomicBoolean(false)
 
     fun init(
         context: Context,
         config: LoggerConfig = LoggerConfig()
     ) {
-        this.context = context.applicationContext
-        this.config = config
-        val processName = ProcessNameResolver.resolve(this.context)
+        val applicationContext = context.applicationContext
+        val filesDir = applicationContext.filesDir
+        val packageName = applicationContext.packageName
+        val processName = ProcessNameResolver.resolve(applicationContext)
+        val session = if (config.sessionLoggingEnabled) {
+            LogSessionFactory.create(config)
+        } else {
+            null
+        }
+        val sessionLogDirectory = LogDirectoryResolver.resolve(filesDir, config, session)
 
-        destination = LoggerEngine.createDefaultDestination(
-            filesDirProvider = { this.context.filesDir },
+        this.config = config
+        this.packageName = packageName
+        this.processName = processName
+        this.session = session
+        logDirectory = sessionLogDirectory
+        exportDirectory = File(filesDir, "log_exports")
+        recentLogBuffer = if (config.crashCaptureEnabled) {
+            RecentLogBuffer(config.crashBufferSize)
+        } else {
+            null
+        }
+
+        val newDestination = LoggerEngine.createDefaultDestination(
+            logDirectoryProvider = { logDirectory() },
             configProvider = { this.config },
-            packageNameProvider = { this.context.packageName },
-            processNameProvider = { processName }
-        )
-        delegate = DefaultLogger(
-            destination = destination,
+            packageNameProvider = { packageName },
             processNameProvider = { processName },
-            minimumLogLevel = this.config.minimumLogLevel
+            recentLogBuffer = recentLogBuffer
         )
+        destination = newDestination
+        delegate = DefaultLogger(
+            destination = newDestination,
+            processNameProvider = { processName },
+            minimumLogLevel = this.config.minimumLogLevel,
+            isLoggable = ::isLoggable
+        )
+
+        if (config.autoFlushOnAppBackground) {
+            registerAutoFlush(applicationContext)
+        }
+        if (config.crashCaptureEnabled) {
+            installCrashHandler()
+        } else {
+            uninstallCrashHandler()
+        }
     }
 
     override fun d(tag: String, msg: String) {
-        delegate.d(tag, msg)
+        logger().d(tag, msg)
     }
 
     override fun w(tag: String, msg: String) {
-        delegate.w(tag, msg)
+        logger().w(tag, msg)
     }
 
     override fun e(tag: String, msg: String, tr: Throwable?) {
-        delegate.e(tag, msg, tr)
+        logger().e(tag, msg, tr)
+    }
+
+    fun d(tag: String, msg: () -> String) {
+        if (isLoggable(LogLevel.DEBUG, tag)) {
+            d(tag, msg())
+        }
+    }
+
+    fun w(tag: String, msg: () -> String) {
+        if (isLoggable(LogLevel.WARN, tag)) {
+            w(tag, msg())
+        }
+    }
+
+    fun e(tag: String, tr: Throwable? = null, msg: () -> String) {
+        if (isLoggable(LogLevel.ERROR, tag)) {
+            e(tag, msg(), tr)
+        }
+    }
+
+    fun setTagMinimumLevel(tag: String, level: LogLevel?) {
+        if (level == null) {
+            tagMinimumLevels.remove(tag)
+        } else {
+            tagMinimumLevels[tag] = level
+        }
+    }
+
+    fun clearTagMinimumLevels() {
+        tagMinimumLevels.clear()
+    }
+
+    fun isLoggable(level: LogLevel, tag: String): Boolean {
+        val minimumLevel = tagMinimumLevels[tag] ?: config.minimumLogLevel
+        return level.priority >= minimumLevel.priority
+    }
+
+    fun session(): LogSession? {
+        return session
     }
 
     fun flush(
         timeoutMillis: Long = FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS
     ): Boolean {
-        return (destination as? FlushableLogDestination)
+        return (destination() as? FlushableLogDestination)
             ?.flush(timeoutMillis)
             ?: true
+    }
+
+    fun diagnostics(): LogDiagnostics {
+        val destinationDiagnostics = (destination() as? DiagnosticLogDestination)
+            ?.diagnostics()
+            ?: LogDiagnostics()
+
+        return destinationDiagnostics.copy(
+            currentLogFiles = logDirectory()
+                .listFiles()
+                .orEmpty()
+                .filter { file -> file.isFile }
+                .map { file -> file.name }
+                .sorted()
+        )
+    }
+
+    fun exportLogs(
+        outputFile: File = defaultExportFile(),
+        redactor: LogRedactor = LogRedactor.NONE
+    ): File {
+        flush()
+        return LogExporter.export(
+            logDirectory = logDirectory(),
+            outputFile = outputFile,
+            baseLogFileName = config.logFileName,
+            redactor = redactor,
+            metadataEntries = mapOf(
+                "diagnostics.json" to DiagnosticBundle.toJson(
+                    appPackageName = packageName ?: "unknown",
+                    processName = processName ?: "unknown",
+                    session = session,
+                    generatedAtMillis = System.currentTimeMillis(),
+                    diagnostics = diagnostics(),
+                    config = config
+                )
+            )
+        )
+    }
+
+    fun createShareIntent(
+        archiveUri: Uri,
+        mimeType: String = "application/zip"
+    ): Intent {
+        return Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, archiveUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    private fun defaultExportFile(): File {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+            .format(Date())
+        return File(exportDirectory(), "${config.zipPrefix}_$timestamp.zip")
+    }
+
+    private fun registerAutoFlush(context: Context) {
+        if (!lifecycleCallbackRegistered.compareAndSet(false, true)) {
+            return
+        }
+
+        context.registerComponentCallbacks(
+            object : ComponentCallbacks2 {
+                override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+                override fun onLowMemory() {
+                    flush()
+                }
+
+                override fun onTrimMemory(level: Int) {
+                    if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+                        flush()
+                    }
+                }
+            }
+        )
+    }
+
+    private fun installCrashHandler() {
+        if (!crashHandlerInstalled.compareAndSet(false, true)) {
+            return
+        }
+
+        previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+        val handler = Thread.UncaughtExceptionHandler { thread, throwable ->
+            writeCrashSnapshot(thread, throwable)
+            val previous = previousUncaughtExceptionHandler
+            if (previous != null) {
+                previous.uncaughtException(thread, throwable)
+            } else {
+                throw throwable
+            }
+        }
+        installedUncaughtExceptionHandler = handler
+        Thread.setDefaultUncaughtExceptionHandler(handler)
+    }
+
+    private fun uninstallCrashHandler() {
+        if (!crashHandlerInstalled.compareAndSet(true, false)) {
+            return
+        }
+
+        if (Thread.getDefaultUncaughtExceptionHandler() == installedUncaughtExceptionHandler) {
+            Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
+        }
+        installedUncaughtExceptionHandler = null
+        previousUncaughtExceptionHandler = null
+    }
+
+    private fun writeCrashSnapshot(
+        thread: Thread,
+        throwable: Throwable
+    ) {
+        recentLogBuffer
+            ?.snapshot()
+            .orEmpty()
+            .forEach { record ->
+                destination().write(
+                    record.copy(
+                        level = LogLevel.ERROR,
+                        tag = "CrashBuffer/${record.tag}",
+                        message = "[recent] ${record.message}"
+                    )
+                )
+            }
+
+        e("FileLoggerCrash", "Uncaught exception on ${thread.name}", throwable)
+        flush()
+    }
+
+    private fun logger(): Logger {
+        return delegate ?: throw IllegalStateException("FileLogger.init(context) must be called before logging.")
+    }
+
+    private fun destination(): LogDestination {
+        return destination ?: throw IllegalStateException("FileLogger.init(context) must be called before using FileLogger.")
+    }
+
+    private fun logDirectory(): File {
+        return logDirectory ?: throw IllegalStateException("FileLogger.init(context) must be called before accessing logs.")
+    }
+
+    private fun exportDirectory(): File {
+        return exportDirectory ?: throw IllegalStateException("FileLogger.init(context) must be called before exporting logs.")
     }
 }

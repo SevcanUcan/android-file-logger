@@ -5,10 +5,11 @@ import java.io.File
 internal object LoggerEngine {
 
     fun createDefaultDestination(
-        filesDirProvider: () -> File,
+        logDirectoryProvider: () -> File,
         configProvider: () -> LoggerConfig,
         packageNameProvider: () -> String,
-        processNameProvider: () -> String
+        processNameProvider: () -> String,
+        recentLogBuffer: RecentLogBuffer? = null
     ): LogDestination {
         val syncFileDestination = FileLogDestination(
             fileProvider = {
@@ -24,7 +25,7 @@ internal object LoggerEngine {
                 }
 
                 File(
-                    File(filesDirProvider(), config.logFolder),
+                    logDirectoryProvider(),
                     logFileName
                 )
             },
@@ -41,20 +42,21 @@ internal object LoggerEngine {
             queueCapacity = configProvider().asyncQueueCapacity,
             overflowStrategy = configProvider().asyncOverflowStrategy
         )
+        val diagnosticAsyncDestination = AsyncLogDiagnosticsDestination(asyncFileDestination)
         val fileDestination = if (configProvider().errorSyncFallbackEnabled) {
             ErrorSyncFallbackDestination(
-                asyncDestination = asyncFileDestination,
+                asyncDestination = diagnosticAsyncDestination,
                 syncDestination = syncFileDestination
             )
         } else {
-            asyncFileDestination
+            diagnosticAsyncDestination
         }
 
         return CompositeLogDestination(
             listOf(
                 LogcatDestination(),
                 fileDestination
-            )
+            ) + listOfNotNull(recentLogBuffer) + configProvider().customDestinations
         )
     }
 }

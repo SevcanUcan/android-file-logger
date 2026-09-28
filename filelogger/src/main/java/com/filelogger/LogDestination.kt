@@ -14,17 +14,40 @@ interface FlushableLogDestination : LogDestination {
 
 internal class CompositeLogDestination(
     private val destinations: List<LogDestination>
-) : FlushableLogDestination {
+) : FlushableLogDestination, DiagnosticLogDestination {
 
     override fun write(record: LogRecord) {
         destinations.forEach { destination ->
-            destination.write(record)
+            try {
+                destination.write(record)
+            } catch (_: Exception) {
+                // Destination failures must not crash the host app.
+            }
         }
     }
 
     override fun flush(timeoutMillis: Long): Boolean {
         return destinations
             .filterIsInstance<FlushableLogDestination>()
-            .all { destination -> destination.flush(timeoutMillis) }
+            .map { destination ->
+                try {
+                    destination.flush(timeoutMillis)
+                } catch (_: Exception) {
+                    false
+                }
+            }
+            .all { flushed -> flushed }
+    }
+
+    override fun diagnostics(): LogDiagnostics {
+        return destinations
+            .filterIsInstance<DiagnosticLogDestination>()
+            .fold(LogDiagnostics()) { diagnostics, destination ->
+                try {
+                    diagnostics + destination.diagnostics()
+                } catch (_: Exception) {
+                    diagnostics
+                }
+            }
     }
 }

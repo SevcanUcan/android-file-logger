@@ -160,6 +160,31 @@ class AsyncLogDestinationTest {
         assertEquals(0L, destination.droppedRecords())
     }
 
+    @Test
+    fun `diagnostics expose dropped records and capacity`() {
+        val delegate = BlockingDestination()
+        val asyncDestination = AsyncLogDestination(
+            delegate = delegate,
+            workerName = "AsyncLogDestinationTest",
+            queueCapacity = 1,
+            overflowStrategy = AsyncOverflowStrategy.DROP_NEWEST
+        )
+        val destination = AsyncLogDiagnosticsDestination(asyncDestination)
+
+        destination.write(testRecord(message = "first"))
+        assertTrue(delegate.awaitFirstWrite())
+        destination.write(testRecord(message = "second"))
+        destination.write(testRecord(message = "third"))
+
+        val diagnostics = destination.diagnostics()
+        delegate.release()
+        destination.flush(timeoutMillis = 1_000)
+
+        assertEquals(1L, diagnostics.droppedAsyncRecords)
+        assertEquals(1, diagnostics.queuedAsyncRecords)
+        assertEquals(1, diagnostics.asyncQueueCapacity)
+    }
+
     private class RecordingDestination : LogDestination {
         val records = Collections.synchronizedList(mutableListOf<LogRecord>())
 

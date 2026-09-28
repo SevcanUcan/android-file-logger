@@ -61,6 +61,28 @@ class DefaultLoggerTest {
         assertEquals(LogLevel.WARN, destination.singleRecord().level)
     }
 
+    @Test
+    fun `custom log policy can override minimum level by tag`() {
+        val destination = RecordingDestination()
+        val tagLevels = mapOf("Network" to LogLevel.ERROR)
+        val logger = DefaultLogger(
+            destination = destination,
+            processNameProvider = { "com.test.app" },
+            minimumLogLevel = LogLevel.DEBUG,
+            isLoggable = { level, tag ->
+                level.priority >= (tagLevels[tag] ?: LogLevel.DEBUG).priority
+            }
+        )
+
+        logger.w("Network", "hidden")
+        logger.e("Network", "visible")
+        logger.d("UI", "visible")
+
+        assertEquals(2, destination.recordCount())
+        assertEquals(LogLevel.ERROR, destination.records()[0].level)
+        assertEquals(LogLevel.DEBUG, destination.records()[1].level)
+    }
+
     private class RecordingDestination : LogDestination {
         private val records = mutableListOf<LogRecord>()
 
@@ -71,5 +93,7 @@ class DefaultLoggerTest {
         fun singleRecord(): LogRecord = records.single()
 
         fun recordCount(): Int = records.size
+
+        fun records(): List<LogRecord> = records.toList()
     }
 }

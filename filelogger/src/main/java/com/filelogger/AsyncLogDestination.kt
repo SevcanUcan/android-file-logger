@@ -50,9 +50,11 @@ internal class AsyncLogDestination(
         }
     }
 
-    internal fun droppedRecords(): Long {
-        return droppedRecordCount.get()
-    }
+    internal fun droppedRecords(): Long = droppedRecordCount.get()
+
+    internal fun queuedRecords(): Int = queue.count { item -> item is QueueItem.Record }
+
+    internal fun queueCapacity(): Int = queue.remainingCapacity() + queue.size
 
     private fun enqueueRecord(item: QueueItem.Record) {
         when (overflowStrategy) {
@@ -141,5 +143,18 @@ internal class AsyncLogDestination(
 
     private companion object {
         const val DEFAULT_QUEUE_CAPACITY = 1024
+    }
+}
+
+internal class AsyncLogDiagnosticsDestination(
+    private val asyncDestination: AsyncLogDestination
+) : FlushableLogDestination by asyncDestination, DiagnosticLogDestination {
+
+    override fun diagnostics(): LogDiagnostics {
+        return LogDiagnostics(
+            droppedAsyncRecords = asyncDestination.droppedRecords(),
+            queuedAsyncRecords = asyncDestination.queuedRecords(),
+            asyncQueueCapacity = asyncDestination.queueCapacity()
+        )
     }
 }

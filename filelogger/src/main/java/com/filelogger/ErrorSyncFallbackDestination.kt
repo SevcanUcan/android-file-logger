@@ -3,7 +3,7 @@ package com.filelogger
 internal class ErrorSyncFallbackDestination(
     private val asyncDestination: FlushableLogDestination,
     private val syncDestination: FlushableLogDestination
-) : FlushableLogDestination {
+) : FlushableLogDestination, DiagnosticLogDestination {
 
     override fun write(record: LogRecord) {
         if (record.level == LogLevel.ERROR) {
@@ -19,5 +19,11 @@ internal class ErrorSyncFallbackDestination(
         val asyncFlushed = asyncDestination.flush(timeoutMillis)
         val syncFlushed = syncDestination.flush(timeoutMillis)
         return asyncFlushed && syncFlushed
+    }
+
+    override fun diagnostics(): LogDiagnostics {
+        return (asyncDestination as? DiagnosticLogDestination)
+            ?.diagnostics()
+            ?: LogDiagnostics()
     }
 }

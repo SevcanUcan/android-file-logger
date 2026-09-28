@@ -20,7 +20,12 @@ At the moment, it provides:
 
 - a dedicated Android library module
 - a simple logger API
+- multiple destinations through a pluggable destination model
+- Logcat + file output out of the box
 - background file writing
+- configurable file output format
+- basic file rotation
+- async flush support
 - a module structure that can be built and published cleanly
 - a foundation that can be expanded into a more modular architecture
 
@@ -103,6 +108,51 @@ FileLogger.w("MainActivity", "Potential issue detected")
 FileLogger.e("MainActivity", "Unexpected error", throwable)
 ```
 
+## Configuration
+
+The logger can be configured with a `LoggerConfig`.
+
+JSON output is the default:
+
+```kotlin
+FileLogger.init(
+    context = applicationContext,
+    config = LoggerConfig(
+        logFolder = "logs",
+        logFileName = "app.log"
+    )
+)
+```
+
+Plain text output:
+
+```kotlin
+FileLogger.init(
+    context = applicationContext,
+    config = LoggerConfig(
+        logFormatter = PlainTextLogFormatter()
+    )
+)
+```
+
+Basic file rotation:
+
+```kotlin
+FileLogger.init(
+    context = applicationContext,
+    config = LoggerConfig(
+        maxFileSize = 1024 * 1024,
+        maxBackupFiles = 3
+    )
+)
+```
+
+If you need to make sure queued file logs are written before exporting or sharing them, you can flush the async file pipeline:
+
+```kotlin
+FileLogger.flush()
+```
+
 ## Log data
 
 The intended log structure includes fields such as:
@@ -117,16 +167,30 @@ The intended log structure includes fields such as:
 
 These details should become more configurable as the library grows.
 
+## Technical notes
+
+The current implementation is built around a few small pieces:
+
+- `Logger` as the public logging contract
+- `DefaultLogger` for structured record creation
+- `LogDestination` for pluggable outputs
+- `LogcatDestination` for Logcat writes
+- `FileLogDestination` for file writes
+- `LogFormatter` for output formatting
+- `AsyncLogDestination` for non-blocking file writes
+- `FileRotationPolicy` for basic size-based rotation
+
+A more detailed technical overview is available in [docs/TECHNICAL_OVERVIEW.md](docs/TECHNICAL_OVERVIEW.md).
+
 ## Roadmap
 
 Some of the next steps are:
 
 - defining a cleaner public API
-- introducing a proper `LogDestination` model
-- adding formatter abstractions such as `JsonLogFormatter` and `PlainTextLogFormatter`
-- supporting multiple destinations
-- improving async reliability
-- adding file size management and rotation
+- supporting custom destination composition through configuration
+- expanding formatter customization
+- improving async reliability further for crash and shutdown cases
+- extending file retention and archive support
 - expanding test coverage
 - improving documentation and example usage
 

@@ -1,6 +1,7 @@
 package com.filelogger
 
 import java.io.File
+import java.io.IOException
 
 internal class FileRotationPolicy(
     private val maxFileSize: Long,
@@ -32,23 +33,23 @@ internal class FileRotationPolicy(
 
     private fun rotate(file: File) {
         if (maxBackupFiles <= 0) {
-            file.delete()
+            deleteOrThrow(file)
             return
         }
 
         val oldestBackup = backupFile(file, maxBackupFiles)
         if (oldestBackup.exists()) {
-            oldestBackup.delete()
+            deleteOrThrow(oldestBackup)
         }
 
         for (index in maxBackupFiles - 1 downTo 1) {
             val source = backupFile(file, index)
             if (source.exists()) {
-                source.renameTo(backupFile(file, index + 1))
+                renameOrThrow(source, backupFile(file, index + 1))
             }
         }
 
-        file.renameTo(backupFile(file, 1))
+        renameOrThrow(file, backupFile(file, 1))
     }
 
     private fun backupFile(file: File, index: Int): File {
@@ -70,7 +71,7 @@ internal class FileRotationPolicy(
         logFiles
             .filter { it != activeFile }
             .filter { it.lastModified() < threshold }
-            .forEach { it.delete() }
+            .forEach { deleteOrThrow(it) }
     }
 
     private fun trimTotalSize(activeFile: File, logFiles: List<File>) {
@@ -92,10 +93,24 @@ internal class FileRotationPolicy(
                 }
 
                 val size = candidate.length()
-                if (candidate.delete()) {
-                    totalSize -= size
-                }
+                deleteOrThrow(candidate)
+                totalSize -= size
             }
+    }
+
+    private fun deleteOrThrow(file: File) {
+        if (file.exists() && !file.delete()) {
+            throw IOException("Failed to delete log file: ${file.absolutePath}")
+        }
+    }
+
+    private fun renameOrThrow(
+        source: File,
+        target: File
+    ) {
+        if (!source.renameTo(target)) {
+            throw IOException("Failed to rename log file from ${source.absolutePath} to ${target.absolutePath}")
+        }
     }
 
     private fun logFiles(file: File): List<File> {

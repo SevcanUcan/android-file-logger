@@ -5,7 +5,10 @@ class DefaultLogger internal constructor(
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
     private val threadNameProvider: () -> String = { Thread.currentThread().name },
     private val processNameProvider: () -> String,
-    private val minimumLogLevel: LogLevel = LogLevel.DEBUG
+    private val minimumLogLevel: LogLevel = LogLevel.DEBUG,
+    private val isLoggable: (LogLevel, String) -> Boolean = { level, _ ->
+        level.priority >= minimumLogLevel.priority
+    }
 ) : Logger {
 
     override fun d(tag: String, msg: String) {
@@ -26,7 +29,7 @@ class DefaultLogger internal constructor(
         message: String,
         throwable: Throwable? = null
     ) {
-        if (level.priority < minimumLogLevel.priority) {
+        if (!isLoggable(level, tag)) {
             return
         }
 
