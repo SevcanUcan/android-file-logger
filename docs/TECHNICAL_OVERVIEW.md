@@ -228,6 +228,9 @@ This makes support exports easier to reason about because each exported archive 
 
 When `errorSyncFallbackEnabled` is true, `ERROR` logs bypass the async queue and write directly to the file destination, followed by a flush.
 
+Before the synchronous write, the async queue is drained while new writes are held.
+This preserves the file order of records submitted before and after the `ERROR` log.
+
 This reduces the chance of losing the final important log before a crash. It does not replace full crash capture; it is a lightweight reliability layer.
 
 ## Crash Capture

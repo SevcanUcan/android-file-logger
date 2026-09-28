@@ -5,28 +5,37 @@ internal class ErrorSyncFallbackDestination(
     private val syncDestination: FlushableLogDestination
 ) : CloseableLogDestination, DiagnosticLogDestination {
 
-    override fun write(record: LogRecord) {
-        if (record.level == LogLevel.ERROR) {
-            syncDestination.write(record)
-            syncDestination.flush()
-            return
-        }
+    private val writeLock = Any()
 
-        asyncDestination.write(record)
+    override fun write(record: LogRecord) {
+        synchronized(writeLock) {
+            if (record.level == LogLevel.ERROR) {
+                asyncDestination.flush()
+                syncDestination.write(record)
+                syncDestination.flush()
+                return
+            }
+
+            asyncDestination.write(record)
+        }
     }
 
     override fun flush(timeoutMillis: Long): Boolean {
-        val asyncFlushed = asyncDestination.flush(timeoutMillis)
-        val syncFlushed = syncDestination.flush(timeoutMillis)
-        return asyncFlushed && syncFlushed
+        return synchronized(writeLock) {
+            val asyncFlushed = asyncDestination.flush(timeoutMillis)
+            val syncFlushed = syncDestination.flush(timeoutMillis)
+            asyncFlushed && syncFlushed
+        }
     }
 
     override fun close(timeoutMillis: Long): Boolean {
-        val asyncClosed = (asyncDestination as? CloseableLogDestination)
-            ?.close(timeoutMillis)
-            ?: asyncDestination.flush(timeoutMillis)
-        val syncFlushed = syncDestination.flush(timeoutMillis)
-        return asyncClosed && syncFlushed
+        return synchronized(writeLock) {
+            val asyncClosed = (asyncDestination as? CloseableLogDestination)
+                ?.close(timeoutMillis)
+                ?: asyncDestination.flush(timeoutMillis)
+            val syncFlushed = syncDestination.flush(timeoutMillis)
+            asyncClosed && syncFlushed
+        }
     }
 
     override fun diagnostics(): LogDiagnostics {
