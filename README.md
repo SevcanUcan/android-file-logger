@@ -153,6 +153,15 @@ If you need to make sure queued file logs are written before exporting or sharin
 FileLogger.flush()
 ```
 
+When the logger is no longer needed, close its worker and release lifecycle hooks:
+
+```kotlin
+FileLogger.shutdown()
+```
+
+Calling `init()` again safely shuts down the previous runtime before applying the
+new configuration. Runtime tag overrides are reset during re-initialization.
+
 ## Log data
 
 The intended log structure includes fields such as:

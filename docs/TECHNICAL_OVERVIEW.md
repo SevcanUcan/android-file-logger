@@ -41,11 +41,32 @@ FileLogger.d("Startup", "Logger ready")
 FileLogger.w("Sync", "Retry scheduled")
 FileLogger.e("Crash", "Unexpected failure", throwable)
 FileLogger.flush()
+FileLogger.shutdown()
 
 val archive = FileLogger.exportLogs()
 val diagnostics = FileLogger.diagnostics()
 val session = FileLogger.session()
 ```
+
+### Runtime lifecycle
+
+`FileLogger.init()` can be called again when configuration changes. Re-initialization:
+
+- drains and closes the previous async queue
+- unregisters the previous background-flush callback
+- restores the previous uncaught-exception handler
+- clears runtime tag-level overrides
+- releases session and directory references
+
+Applications and tests can explicitly release the logger runtime:
+
+```kotlin
+val closedCleanly = FileLogger.shutdown()
+```
+
+`shutdown()` waits for queued records up to the supplied timeout. New writes require
+a subsequent `init()` call. Custom destinations that own resources can implement
+`CloseableLogDestination` to participate in shutdown.
 
 `FileLogger` is a singleton facade, but it must not retain an Android `Context`. During initialization it derives safe values from `applicationContext`, such as `filesDir`, package name, and process name, then keeps only the logger pipeline. This avoids Android Lint's static context leak warning.
 

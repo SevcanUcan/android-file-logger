@@ -12,34 +12,50 @@ internal class AsyncLogDestination(
     private val workerName: String = "FileLogger-Worker",
     queueCapacity: Int = DEFAULT_QUEUE_CAPACITY,
     private val overflowStrategy: AsyncOverflowStrategy = AsyncOverflowStrategy.DROP_OLDEST
-) : FlushableLogDestination {
+) : CloseableLogDestination {
 
     private val queue = LinkedBlockingDeque<QueueItem>(queueCapacity)
     private val started = AtomicBoolean(false)
+    private val closed = AtomicBoolean(false)
     private val droppedRecordCount = AtomicLong(0)
+    private val terminationLatch = CountDownLatch(1)
+    private val terminationResult = AtomicReference(true)
+    private val lifecycleLock = Any()
+    @Volatile
+    private var workerThread: Thread? = null
 
     override fun write(record: LogRecord) {
-        startIfNeeded()
-        enqueueRecord(QueueItem.Record(record))
+        synchronized(lifecycleLock) {
+            if (closed.get()) {
+                droppedRecordCount.incrementAndGet()
+                return
+            }
+            startIfNeeded()
+            enqueueRecord(QueueItem.Record(record))
+        }
     }
 
     override fun flush(timeoutMillis: Long): Boolean {
+        if (closed.get()) {
+            return awaitTermination(timeoutMillis)
+        }
+
         if (!started.get() && queue.isEmpty()) {
             return true
         }
 
-        startIfNeeded()
         val latch = CountDownLatch(1)
         val result = AtomicReference(true)
-        val queued = try {
-            queue.offer(QueueItem.Flush(latch, result, timeoutMillis), timeoutMillis, TimeUnit.MILLISECONDS)
-        } catch (_: InterruptedException) {
-            Thread.currentThread().interrupt()
-            false
+        val queued = synchronized(lifecycleLock) {
+            if (closed.get()) {
+                return@synchronized false
+            }
+            startIfNeeded()
+            offer(QueueItem.Flush(latch, result, timeoutMillis), timeoutMillis)
         }
 
         if (!queued) {
-            return false
+            return if (closed.get()) awaitTermination(timeoutMillis) else false
         }
 
         return try {
@@ -48,6 +64,28 @@ internal class AsyncLogDestination(
             Thread.currentThread().interrupt()
             false
         }
+    }
+
+    override fun close(timeoutMillis: Long): Boolean {
+        val closeItem = synchronized(lifecycleLock) {
+            if (!closed.compareAndSet(false, true)) {
+                return@synchronized null
+            }
+
+            if (!started.get()) {
+                terminationResult.set(closeDelegate(timeoutMillis))
+                terminationLatch.countDown()
+                return@synchronized null
+            }
+
+            QueueItem.Close(timeoutMillis)
+        }
+
+        if (closeItem != null && !offer(closeItem, timeoutMillis)) {
+            workerThread?.interrupt()
+        }
+
+        return awaitTermination(timeoutMillis)
     }
 
     internal fun droppedRecords(): Long = droppedRecordCount.get()
@@ -109,26 +147,75 @@ internal class AsyncLogDestination(
             return
         }
 
-        Thread {
-            while (true) {
-                when (val item = queue.take()) {
-                    is QueueItem.Record -> delegate.write(item.record)
-                    is QueueItem.Flush -> {
-                        item.result.set(flushDelegate(item.timeoutMillis))
-                        item.latch.countDown()
+        workerThread = Thread {
+            var result = true
+            try {
+                while (true) {
+                    when (val item = queue.take()) {
+                        is QueueItem.Record -> delegate.write(item.record)
+                        is QueueItem.Flush -> {
+                            item.result.set(flushDelegate(item.timeoutMillis))
+                            item.latch.countDown()
+                        }
+
+                        is QueueItem.Close -> {
+                            result = closeDelegate(item.timeoutMillis)
+                            return@Thread
+                        }
                     }
                 }
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                result = closeDelegate(FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS)
+            } catch (_: Exception) {
+                closed.set(true)
+                result = false
+                closeDelegate(FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS)
+            } finally {
+                terminationResult.set(result)
+                terminationLatch.countDown()
             }
         }.apply {
             isDaemon = true
             name = workerName
-        }.start()
+            start()
+        }
     }
 
     private fun flushDelegate(timeoutMillis: Long): Boolean {
         return (delegate as? FlushableLogDestination)
             ?.flush(timeoutMillis)
             ?: true
+    }
+
+    private fun closeDelegate(timeoutMillis: Long): Boolean {
+        return try {
+            when (delegate) {
+                is CloseableLogDestination -> delegate.close(timeoutMillis)
+                is FlushableLogDestination -> delegate.flush(timeoutMillis)
+                else -> true
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun offer(item: QueueItem, timeoutMillis: Long): Boolean {
+        return try {
+            queue.offer(item, timeoutMillis, TimeUnit.MILLISECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
+    }
+
+    private fun awaitTermination(timeoutMillis: Long): Boolean {
+        return try {
+            terminationLatch.await(timeoutMillis, TimeUnit.MILLISECONDS) && terminationResult.get()
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        }
     }
 
     private sealed interface QueueItem {
@@ -139,6 +226,8 @@ internal class AsyncLogDestination(
             val result: AtomicReference<Boolean>,
             val timeoutMillis: Long
         ) : QueueItem
+
+        data class Close(val timeoutMillis: Long) : QueueItem
     }
 
     private companion object {
@@ -148,7 +237,13 @@ internal class AsyncLogDestination(
 
 internal class AsyncLogDiagnosticsDestination(
     private val asyncDestination: AsyncLogDestination
-) : FlushableLogDestination by asyncDestination, DiagnosticLogDestination {
+) : CloseableLogDestination, DiagnosticLogDestination {
+
+    override fun write(record: LogRecord) = asyncDestination.write(record)
+
+    override fun flush(timeoutMillis: Long): Boolean = asyncDestination.flush(timeoutMillis)
+
+    override fun close(timeoutMillis: Long): Boolean = asyncDestination.close(timeoutMillis)
 
     override fun diagnostics(): LogDiagnostics {
         return LogDiagnostics(

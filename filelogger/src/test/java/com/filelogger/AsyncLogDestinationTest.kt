@@ -185,6 +185,51 @@ class AsyncLogDestinationTest {
         assertEquals(1, diagnostics.asyncQueueCapacity)
     }
 
+    @Test
+    fun `close drains queued records and closes delegate`() {
+        val delegate = RecordingCloseableDestination()
+        val destination = AsyncLogDestination(
+            delegate = delegate,
+            workerName = "AsyncLogDestinationTest"
+        )
+        val first = testRecord(message = "first")
+        val second = testRecord(message = "second")
+
+        destination.write(first)
+        destination.write(second)
+
+        assertTrue(destination.close(timeoutMillis = 1_000))
+        assertEquals(listOf(first, second), delegate.records)
+        assertEquals(1, delegate.closeCount)
+    }
+
+    @Test
+    fun `close is idempotent and writes after close are dropped`() {
+        val delegate = RecordingCloseableDestination()
+        val destination = AsyncLogDestination(
+            delegate = delegate,
+            workerName = "AsyncLogDestinationTest"
+        )
+
+        assertTrue(destination.close(timeoutMillis = 1_000))
+        assertTrue(destination.close(timeoutMillis = 1_000))
+        destination.write(testRecord(message = "after-close"))
+
+        assertTrue(delegate.records.isEmpty())
+        assertEquals(1, delegate.closeCount)
+        assertEquals(1L, destination.droppedRecords())
+    }
+
+    @Test
+    fun `close reports delegate close failure`() {
+        val destination = AsyncLogDestination(
+            delegate = FailingCloseableDestination(),
+            workerName = "AsyncLogDestinationTest"
+        )
+
+        assertFalse(destination.close(timeoutMillis = 1_000))
+    }
+
     private class RecordingDestination : LogDestination {
         val records = Collections.synchronizedList(mutableListOf<LogRecord>())
 
@@ -230,5 +275,30 @@ class AsyncLogDestinationTest {
             flushCount += 1
             return flushResult
         }
+    }
+
+    private class RecordingCloseableDestination : CloseableLogDestination {
+        val records = Collections.synchronizedList(mutableListOf<LogRecord>())
+        var closeCount = 0
+            private set
+
+        override fun write(record: LogRecord) {
+            records += record
+        }
+
+        override fun flush(timeoutMillis: Long): Boolean = true
+
+        override fun close(timeoutMillis: Long): Boolean {
+            closeCount += 1
+            return true
+        }
+    }
+
+    private class FailingCloseableDestination : CloseableLogDestination {
+        override fun write(record: LogRecord) = Unit
+
+        override fun flush(timeoutMillis: Long): Boolean = true
+
+        override fun close(timeoutMillis: Long): Boolean = false
     }
 }

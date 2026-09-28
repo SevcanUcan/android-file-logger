@@ -69,6 +69,28 @@ class CompositeLogDestinationTest {
         assertEquals(false, flushed)
     }
 
+    @Test
+    fun `composite closes closeable destinations and flushes remaining destinations`() {
+        val closeable = RecordingCloseableDestination()
+        val flushable = RecordingFlushableDestination()
+        val composite = CompositeLogDestination(listOf(closeable, flushable))
+
+        assertTrue(composite.close(timeoutMillis = 100))
+        assertEquals(1, closeable.closeCallCount)
+        assertEquals(1, flushable.flushCallCount)
+    }
+
+    @Test
+    fun `composite isolates close failures`() {
+        val recording = RecordingCloseableDestination()
+        val composite = CompositeLogDestination(
+            listOf(FailingCloseableDestination(), recording)
+        )
+
+        assertEquals(false, composite.close(timeoutMillis = 100))
+        assertEquals(1, recording.closeCallCount)
+    }
+
     private class RecordingDestination : LogDestination {
         val records = mutableListOf<LogRecord>()
 
@@ -106,6 +128,29 @@ class CompositeLogDestinationTest {
         override fun write(record: LogRecord) = Unit
 
         override fun flush(timeoutMillis: Long): Boolean {
+            throw IllegalStateException("boom")
+        }
+    }
+
+    private class RecordingCloseableDestination : CloseableLogDestination {
+        var closeCallCount: Int = 0
+
+        override fun write(record: LogRecord) = Unit
+
+        override fun flush(timeoutMillis: Long): Boolean = true
+
+        override fun close(timeoutMillis: Long): Boolean {
+            closeCallCount += 1
+            return true
+        }
+    }
+
+    private class FailingCloseableDestination : CloseableLogDestination {
+        override fun write(record: LogRecord) = Unit
+
+        override fun flush(timeoutMillis: Long): Boolean = true
+
+        override fun close(timeoutMillis: Long): Boolean {
             throw IllegalStateException("boom")
         }
     }

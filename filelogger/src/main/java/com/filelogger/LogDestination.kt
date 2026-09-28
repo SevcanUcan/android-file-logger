@@ -12,9 +12,15 @@ interface FlushableLogDestination : LogDestination {
     }
 }
 
+interface CloseableLogDestination : FlushableLogDestination {
+    fun close(
+        timeoutMillis: Long = FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS
+    ): Boolean
+}
+
 internal class CompositeLogDestination(
     private val destinations: List<LogDestination>
-) : FlushableLogDestination, DiagnosticLogDestination {
+) : CloseableLogDestination, DiagnosticLogDestination {
 
     override fun write(record: LogRecord) {
         destinations.forEach { destination ->
@@ -37,6 +43,22 @@ internal class CompositeLogDestination(
                 }
             }
             .all { flushed -> flushed }
+    }
+
+    override fun close(timeoutMillis: Long): Boolean {
+        return destinations
+            .map { destination ->
+                try {
+                    when (destination) {
+                        is CloseableLogDestination -> destination.close(timeoutMillis)
+                        is FlushableLogDestination -> destination.flush(timeoutMillis)
+                        else -> true
+                    }
+                } catch (_: Exception) {
+                    false
+                }
+            }
+            .all { closed -> closed }
     }
 
     override fun diagnostics(): LogDiagnostics {

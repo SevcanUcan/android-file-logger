@@ -6,28 +6,38 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import java.io.File
+import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 
 object FileLogger : Logger {
 
+    private val lifecycleLock = Any()
+    @Volatile
     internal var config: LoggerConfig = LoggerConfig()
+    @Volatile
     private var destination: LogDestination? = null
+    @Volatile
     private var delegate: Logger? = null
+    @Volatile
     private var logDirectory: File? = null
+    @Volatile
     private var exportDirectory: File? = null
+    @Volatile
     private var packageName: String? = null
+    @Volatile
     private var processName: String? = null
+    @Volatile
     private var session: LogSession? = null
+    @Volatile
     private var recentLogBuffer: RecentLogBuffer? = null
     private var previousUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private var installedUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
+    private var lifecycleContext = WeakReference<Context>(null)
+    private var lifecycleCallback: ComponentCallbacks2? = null
     private val tagMinimumLevels = ConcurrentHashMap<String, LogLevel>()
-    private val lifecycleCallbackRegistered = AtomicBoolean(false)
-    private val crashHandlerInstalled = AtomicBoolean(false)
 
     fun init(
         context: Context,
@@ -44,40 +54,43 @@ object FileLogger : Logger {
         }
         val sessionLogDirectory = LogDirectoryResolver.resolve(filesDir, config, session)
 
-        this.config = config
-        this.packageName = packageName
-        this.processName = processName
-        this.session = session
-        logDirectory = sessionLogDirectory
-        exportDirectory = File(filesDir, "log_exports")
-        recentLogBuffer = if (config.crashCaptureEnabled) {
-            RecentLogBuffer(config.crashBufferSize)
-        } else {
-            null
-        }
+        synchronized(lifecycleLock) {
+            shutdownLocked(FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS)
+            tagMinimumLevels.clear()
 
-        val newDestination = LoggerEngine.createDefaultDestination(
-            logDirectoryProvider = { logDirectory() },
-            configProvider = { this.config },
-            packageNameProvider = { packageName },
-            processNameProvider = { processName },
-            recentLogBuffer = recentLogBuffer
-        )
-        destination = newDestination
-        delegate = DefaultLogger(
-            destination = newDestination,
-            processNameProvider = { processName },
-            minimumLogLevel = this.config.minimumLogLevel,
-            isLoggable = ::isLoggable
-        )
+            this.config = config
+            this.packageName = packageName
+            this.processName = processName
+            this.session = session
+            logDirectory = sessionLogDirectory
+            exportDirectory = File(filesDir, "log_exports")
+            recentLogBuffer = if (config.crashCaptureEnabled) {
+                RecentLogBuffer(config.crashBufferSize)
+            } else {
+                null
+            }
 
-        if (config.autoFlushOnAppBackground) {
-            registerAutoFlush(applicationContext)
-        }
-        if (config.crashCaptureEnabled) {
-            installCrashHandler()
-        } else {
-            uninstallCrashHandler()
+            val newDestination = LoggerEngine.createDefaultDestination(
+                logDirectoryProvider = { logDirectory() },
+                configProvider = { this.config },
+                packageNameProvider = { packageName },
+                processNameProvider = { processName },
+                recentLogBuffer = recentLogBuffer
+            )
+            destination = newDestination
+            delegate = DefaultLogger(
+                destination = newDestination,
+                processNameProvider = { processName },
+                minimumLogLevel = this.config.minimumLogLevel,
+                isLoggable = ::isLoggable
+            )
+
+            if (config.autoFlushOnAppBackground) {
+                registerAutoFlush(applicationContext)
+            }
+            if (config.crashCaptureEnabled) {
+                installCrashHandler()
+            }
         }
     }
 
@@ -140,6 +153,15 @@ object FileLogger : Logger {
             ?: true
     }
 
+    fun shutdown(
+        timeoutMillis: Long = FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS
+    ): Boolean {
+        require(timeoutMillis > 0) { "timeoutMillis must be greater than 0." }
+        return synchronized(lifecycleLock) {
+            shutdownLocked(timeoutMillis)
+        }
+    }
+
     fun diagnostics(): LogDiagnostics {
         val destinationDiagnostics = (destination() as? DiagnosticLogDestination)
             ?.diagnostics()
@@ -196,40 +218,42 @@ object FileLogger : Logger {
     }
 
     private fun registerAutoFlush(context: Context) {
-        if (!lifecycleCallbackRegistered.compareAndSet(false, true)) {
-            return
-        }
+        val callback = object : ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
 
-        context.registerComponentCallbacks(
-            object : ComponentCallbacks2 {
-                override fun onConfigurationChanged(newConfig: Configuration) = Unit
+            override fun onLowMemory() {
+                flushIfInitialized()
+            }
 
-                override fun onLowMemory() {
-                    flush()
-                }
-
-                override fun onTrimMemory(level: Int) {
-                    if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
-                        flush()
-                    }
+            override fun onTrimMemory(level: Int) {
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+                    flushIfInitialized()
                 }
             }
-        )
+        }
+        context.registerComponentCallbacks(callback)
+        lifecycleContext = WeakReference(context)
+        lifecycleCallback = callback
+    }
+
+    private fun unregisterAutoFlush() {
+        val callback = lifecycleCallback ?: return
+        lifecycleContext.get()?.unregisterComponentCallbacks(callback)
+        lifecycleCallback = null
+        lifecycleContext.clear()
     }
 
     private fun installCrashHandler() {
-        if (!crashHandlerInstalled.compareAndSet(false, true)) {
+        if (installedUncaughtExceptionHandler != null) {
             return
         }
 
-        previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        previousUncaughtExceptionHandler = previous
         val handler = Thread.UncaughtExceptionHandler { thread, throwable ->
-            writeCrashSnapshot(thread, throwable)
-            val previous = previousUncaughtExceptionHandler
+            runCatching { writeCrashSnapshot(thread, throwable) }
             if (previous != null) {
                 previous.uncaughtException(thread, throwable)
-            } else {
-                throw throwable
             }
         }
         installedUncaughtExceptionHandler = handler
@@ -237,10 +261,6 @@ object FileLogger : Logger {
     }
 
     private fun uninstallCrashHandler() {
-        if (!crashHandlerInstalled.compareAndSet(true, false)) {
-            return
-        }
-
         if (Thread.getDefaultUncaughtExceptionHandler() == installedUncaughtExceptionHandler) {
             Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler)
         }
@@ -267,6 +287,33 @@ object FileLogger : Logger {
 
         e("FileLoggerCrash", "Uncaught exception on ${thread.name}", throwable)
         flush()
+    }
+
+    private fun shutdownLocked(timeoutMillis: Long): Boolean {
+        delegate = null
+        unregisterAutoFlush()
+        uninstallCrashHandler()
+
+        val oldDestination = destination
+        destination = null
+        val closed = when (oldDestination) {
+            is CloseableLogDestination -> oldDestination.close(timeoutMillis)
+            is FlushableLogDestination -> oldDestination.flush(timeoutMillis)
+            else -> true
+        }
+
+        logDirectory = null
+        exportDirectory = null
+        packageName = null
+        processName = null
+        session = null
+        recentLogBuffer = null
+        return closed
+    }
+
+    private fun flushIfInitialized() {
+        val currentDestination = destination ?: return
+        (currentDestination as? FlushableLogDestination)?.flush()
     }
 
     private fun logger(): Logger {
