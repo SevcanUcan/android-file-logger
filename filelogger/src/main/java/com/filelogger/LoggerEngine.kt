@@ -52,11 +52,15 @@ internal object LoggerEngine {
             diagnosticAsyncDestination
         }
 
-        return CompositeLogDestination(
-            listOf(
-                LogcatDestination(),
-                fileDestination
-            ) + listOfNotNull(recentLogBuffer) + configProvider().customDestinations
+        return RedactingLogDestination(
+            delegate = CompositeLogDestination(
+                listOf(
+                    LogcatDestination(),
+                    fileDestination,
+                    LogMetricsDestination()
+                ) + listOfNotNull(recentLogBuffer) + configProvider().customDestinations
+            ),
+            redactor = configProvider().redactor
         )
     }
 }

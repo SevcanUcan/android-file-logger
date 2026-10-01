@@ -94,6 +94,9 @@ internal class AsyncLogDestination(
 
     internal fun queueCapacity(): Int = queue.remainingCapacity() + queue.size
 
+    internal fun destinationDiagnostics(): LogDiagnostics =
+        (delegate as? DiagnosticLogDestination)?.diagnostics() ?: LogDiagnostics()
+
     private fun enqueueRecord(item: QueueItem.Record) {
         when (overflowStrategy) {
             AsyncOverflowStrategy.DROP_NEWEST -> {
@@ -250,6 +253,6 @@ internal class AsyncLogDiagnosticsDestination(
             droppedAsyncRecords = asyncDestination.droppedRecords(),
             queuedAsyncRecords = asyncDestination.queuedRecords(),
             asyncQueueCapacity = asyncDestination.queueCapacity()
-        )
+        ) + asyncDestination.destinationDiagnostics()
     }
 }

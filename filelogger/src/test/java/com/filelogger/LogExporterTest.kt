@@ -84,6 +84,26 @@ class LogExporterTest {
         }
     }
 
+    @Test
+    fun `export can create metadata only archive`() {
+        val directory = createTempDirectory("filelogger-export").toFile()
+        File(directory, "app.log").writeText("private log\n")
+        val output = File(directory.parentFile, "metadata-only.zip")
+
+        LogExporter.export(
+            logDirectory = directory,
+            outputFile = output,
+            baseLogFileName = "app.log",
+            metadataEntries = mapOf("support-report.json" to "{}\n"),
+            includeLogs = false
+        )
+
+        ZipFile(output).use { zip ->
+            assertEquals(null, zip.getEntry("app.log"))
+            assertEquals("{}\n", zip.readEntry("support-report.json"))
+        }
+    }
+
     private fun ZipFile.readEntry(name: String): String {
         return getInputStream(getEntry(name)).bufferedReader().readText()
     }

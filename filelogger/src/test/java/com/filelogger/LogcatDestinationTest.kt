@@ -65,6 +65,10 @@ class LogcatDestinationTest {
             messages += PrintedLog(LogLevel.DEBUG, tag, message)
         }
 
+        override fun i(tag: String, message: String) {
+            messages += PrintedLog(LogLevel.INFO, tag, message)
+        }
+
         override fun w(tag: String, message: String) {
             messages += PrintedLog(LogLevel.WARN, tag, message)
         }

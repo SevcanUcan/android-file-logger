@@ -27,6 +27,7 @@ class LoggerConfigTest {
         assertEquals(TimeUnit.DAYS.toMillis(7), config.maxLogAgeMillis)
         assertEquals(1_024, config.asyncQueueCapacity)
         assertEquals(true, config.useProcessSpecificLogFiles)
+        assertTrue(config.redactor.redact("token=secret") != "token=secret")
     }
 
     @Test
@@ -36,6 +37,10 @@ class LoggerConfigTest {
             .setMinimumLogLevel(LogLevel.ERROR)
             .setAsyncQueueCapacity(16)
             .setCrashCaptureEnabled(false)
+            .setBreadcrumbCapacity(24)
+            .setMaxBreadcrumbAttributes(8)
+            .setMaxBreadcrumbBytes(4096)
+            .setCollectionEnabled(false)
             .setSessionId("qa-001")
             .setSessionFolderPrefix("run")
             .addDestination(destination)
@@ -44,6 +49,10 @@ class LoggerConfigTest {
         assertEquals(LogLevel.ERROR, config.minimumLogLevel)
         assertEquals(16, config.asyncQueueCapacity)
         assertEquals(false, config.crashCaptureEnabled)
+        assertEquals(24, config.breadcrumbCapacity)
+        assertEquals(8, config.maxBreadcrumbAttributes)
+        assertEquals(4096, config.maxBreadcrumbBytes)
+        assertEquals(false, config.collectionEnabled)
         assertEquals("qa-001", config.sessionId)
         assertEquals("run", config.sessionFolderPrefix)
         assertEquals(listOf(destination), config.customDestinations)

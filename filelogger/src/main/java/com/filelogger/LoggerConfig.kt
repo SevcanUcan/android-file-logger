@@ -12,6 +12,8 @@ data class LoggerConfig(
     val zipPrefix: String = "AppLog",
     val minimumLogLevel: LogLevel = LogLevel.DEBUG,
     val logFormatter: LogFormatter = JsonLogFormatter(),
+    val redactor: LogRedactor = LogRedactor.NONE,
+    val collectionEnabled: Boolean = true,
     val asyncQueueCapacity: Int = 1024,
     val asyncOverflowStrategy: AsyncOverflowStrategy = AsyncOverflowStrategy.DROP_OLDEST,
     val errorSyncFallbackEnabled: Boolean = true,
@@ -19,6 +21,9 @@ data class LoggerConfig(
     val autoFlushOnAppBackground: Boolean = true,
     val crashCaptureEnabled: Boolean = true,
     val crashBufferSize: Int = 64,
+    val breadcrumbCapacity: Int = 64,
+    val maxBreadcrumbAttributes: Int = 16,
+    val maxBreadcrumbBytes: Int = 8 * 1024,
     val sessionLoggingEnabled: Boolean = true,
     val sessionId: String? = null,
     val sessionFolderPrefix: String = "session",
@@ -36,6 +41,15 @@ data class LoggerConfig(
         }
         require(crashBufferSize >= 0) {
             "crashBufferSize must not be negative"
+        }
+        require(breadcrumbCapacity >= 0) {
+            "breadcrumbCapacity must not be negative"
+        }
+        require(maxBreadcrumbAttributes >= 0) {
+            "maxBreadcrumbAttributes must not be negative"
+        }
+        require(maxBreadcrumbBytes > 0) {
+            "maxBreadcrumbBytes must be greater than zero"
         }
         require(sessionFolderPrefix.isNotBlank()) {
             "sessionFolderPrefix must not be blank"
@@ -65,6 +79,7 @@ data class LoggerConfig(
             return LoggerConfig(
                 minimumLogLevel = LogLevel.WARN,
                 logFormatter = JsonLogFormatter(),
+                redactor = LogRedactor.DEFAULT_SENSITIVE,
                 maxFileSize = 3 * 1024 * 1024,
                 maxBackupFiles = 3,
                 maxTotalLogSize = 25 * 1024 * 1024,
@@ -89,6 +104,14 @@ data class LoggerConfig(
 
         fun setLogFormatter(formatter: LogFormatter) = apply {
             config = config.copy(logFormatter = formatter)
+        }
+
+        fun setRedactor(redactor: LogRedactor) = apply {
+            config = config.copy(redactor = redactor)
+        }
+
+        fun setCollectionEnabled(enabled: Boolean) = apply {
+            config = config.copy(collectionEnabled = enabled)
         }
 
         fun setMaxFileSize(bytes: Long) = apply {
@@ -129,6 +152,18 @@ data class LoggerConfig(
 
         fun setCrashBufferSize(size: Int) = apply {
             config = config.copy(crashBufferSize = size)
+        }
+
+        fun setBreadcrumbCapacity(capacity: Int) = apply {
+            config = config.copy(breadcrumbCapacity = capacity)
+        }
+
+        fun setMaxBreadcrumbAttributes(count: Int) = apply {
+            config = config.copy(maxBreadcrumbAttributes = count)
+        }
+
+        fun setMaxBreadcrumbBytes(bytes: Int) = apply {
+            config = config.copy(maxBreadcrumbBytes = bytes)
         }
 
         fun setSessionLoggingEnabled(enabled: Boolean) = apply {

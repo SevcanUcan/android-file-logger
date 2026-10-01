@@ -5,3 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.android.library) apply false
 }
+
+allprojects {
+    group = "com.github.SevcanUcan.android-file-logger"
+    version = providers.gradleProperty("VERSION_NAME").orElse("1.0.0-SNAPSHOT").get()
+}

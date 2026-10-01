@@ -11,22 +11,25 @@ internal object LogExporter {
         outputFile: File,
         baseLogFileName: String,
         redactor: LogRedactor = LogRedactor.NONE,
-        metadataEntries: Map<String, String> = emptyMap()
+        metadataEntries: Map<String, String> = emptyMap(),
+        includeLogs: Boolean = true
     ): File {
         outputFile.parentFile?.mkdirs()
 
         ZipOutputStream(outputFile.outputStream()).use { zip ->
-            logDirectory
-                .listFiles()
-                .orEmpty()
-                .filter { file -> file.isFile && file != outputFile }
-                .filter { file -> isLogFile(file.name, baseLogFileName) }
-                .sortedBy { file -> file.name }
-                .forEach { file ->
-                    zip.putNextEntry(ZipEntry(file.name))
-                    writeRedactedFile(file, zip, redactor)
-                    zip.closeEntry()
-                }
+            if (includeLogs) {
+                logDirectory
+                    .listFiles()
+                    .orEmpty()
+                    .filter { file -> file.isFile && file != outputFile }
+                    .filter { file -> isLogFile(file.name, baseLogFileName) }
+                    .sortedBy { file -> file.name }
+                    .forEach { file ->
+                        zip.putNextEntry(ZipEntry(file.name))
+                        writeRedactedFile(file, zip, redactor)
+                        zip.closeEntry()
+                    }
+            }
 
             metadataEntries
                 .toSortedMap()

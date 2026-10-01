@@ -10,9 +10,14 @@ internal fun Throwable.stackTraceString(): String {
 }
 
 internal fun LogRecord.toLogcatMessage(): String {
-    val throwableMessage = throwable?.stackTraceString()
+    val attributeMessage = attributes
+        .takeIf { it.isNotEmpty() }
+        ?.entries
+        ?.joinToString(prefix = " ", separator = ", ") { (key, value) -> "$key=$value" }
+        .orEmpty()
+    val throwableMessage = (throwableText ?: throwable?.stackTraceString())
         ?.let { "\n$it" }
         .orEmpty()
 
-    return message + throwableMessage
+    return message + attributeMessage + throwableMessage
 }

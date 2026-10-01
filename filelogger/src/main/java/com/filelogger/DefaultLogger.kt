@@ -5,14 +5,19 @@ class DefaultLogger internal constructor(
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
     private val threadNameProvider: () -> String = { Thread.currentThread().name },
     private val processNameProvider: () -> String,
+    private val contextProvider: () -> Map<String, String> = { emptyMap() },
     private val minimumLogLevel: LogLevel = LogLevel.DEBUG,
     private val isLoggable: (LogLevel, String) -> Boolean = { level, _ ->
         level.priority >= minimumLogLevel.priority
     }
-) : Logger {
+) : StructuredLogger {
 
     override fun d(tag: String, msg: String) {
         log(LogLevel.DEBUG, tag, msg)
+    }
+
+    override fun i(tag: String, msg: String) {
+        log(LogLevel.INFO, tag, msg)
     }
 
     override fun w(tag: String, msg: String) {
@@ -23,11 +28,12 @@ class DefaultLogger internal constructor(
         log(LogLevel.ERROR, tag, msg, tr)
     }
 
-    private fun log(
+    override fun log(
         level: LogLevel,
         tag: String,
         message: String,
-        throwable: Throwable? = null
+        throwable: Throwable?,
+        attributes: Map<String, String>
     ) {
         if (!isLoggable(level, tag)) {
             return
@@ -41,7 +47,8 @@ class DefaultLogger internal constructor(
                 message = message,
                 throwable = throwable,
                 threadName = threadNameProvider(),
-                processName = processNameProvider()
+                processName = processNameProvider(),
+                attributes = contextProvider() + attributes
             )
         )
     }

@@ -18,9 +18,15 @@ interface CloseableLogDestination : FlushableLogDestination {
     ): Boolean
 }
 
+interface ErasableLogDestination {
+    fun erasePendingData(
+        timeoutMillis: Long = FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS
+    ): Boolean
+}
+
 internal class CompositeLogDestination(
     private val destinations: List<LogDestination>
-) : CloseableLogDestination, DiagnosticLogDestination {
+) : CloseableLogDestination, DiagnosticLogDestination, ErasableLogDestination {
 
     override fun write(record: LogRecord) {
         destinations.forEach { destination ->
@@ -71,5 +77,14 @@ internal class CompositeLogDestination(
                     diagnostics
                 }
             }
+    }
+
+    override fun erasePendingData(timeoutMillis: Long): Boolean {
+        return destinations
+            .filterIsInstance<ErasableLogDestination>()
+            .map { destination ->
+                runCatching { destination.erasePendingData(timeoutMillis) }.getOrDefault(false)
+            }
+            .all { erased -> erased }
     }
 }

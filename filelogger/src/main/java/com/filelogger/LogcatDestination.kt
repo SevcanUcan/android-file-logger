@@ -17,6 +17,7 @@ internal class LogcatDestination(
 
             when (record.level) {
                 LogLevel.DEBUG -> printer.d(record.tag, part)
+                LogLevel.INFO -> printer.i(record.tag, part)
                 LogLevel.WARN -> printer.w(record.tag, part)
                 LogLevel.ERROR -> printer.e(record.tag, part)
             }
@@ -29,6 +30,8 @@ internal class LogcatDestination(
 internal interface LogcatPrinter {
     fun d(tag: String, message: String)
 
+    fun i(tag: String, message: String)
+
     fun w(tag: String, message: String)
 
     fun e(tag: String, message: String)
@@ -37,6 +40,10 @@ internal interface LogcatPrinter {
 internal object AndroidLogcatPrinter : LogcatPrinter {
     override fun d(tag: String, message: String) {
         Log.d(tag, message)
+    }
+
+    override fun i(tag: String, message: String) {
+        Log.i(tag, message)
     }
 
     override fun w(tag: String, message: String) {

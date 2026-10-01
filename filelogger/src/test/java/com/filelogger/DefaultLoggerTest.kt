@@ -46,6 +46,41 @@ class DefaultLoggerTest {
     }
 
     @Test
+    fun `info log uses info level`() {
+        val destination = RecordingDestination()
+        val logger = DefaultLogger(
+            destination = destination,
+            processNameProvider = { "com.test.app" }
+        )
+
+        logger.i("Lifecycle", "App foregrounded")
+
+        assertEquals(LogLevel.INFO, destination.singleRecord().level)
+    }
+
+    @Test
+    fun `structured attributes merge with context and event wins conflicts`() {
+        val destination = RecordingDestination()
+        val logger = DefaultLogger(
+            destination = destination,
+            processNameProvider = { "com.test.app" },
+            contextProvider = { mapOf("user" to "42", "screen" to "home") }
+        )
+
+        logger.log(
+            level = LogLevel.INFO,
+            tag = "Checkout",
+            message = "Started",
+            attributes = mapOf("screen" to "checkout", "order" to "A-1")
+        )
+
+        assertEquals(
+            mapOf("user" to "42", "screen" to "checkout", "order" to "A-1"),
+            destination.singleRecord().attributes
+        )
+    }
+
+    @Test
     fun `logs below minimum level are skipped`() {
         val destination = RecordingDestination()
         val logger = DefaultLogger(
@@ -55,6 +90,7 @@ class DefaultLoggerTest {
         )
 
         logger.d("Debug", "hidden")
+        logger.i("Info", "hidden")
         logger.w("Warn", "visible")
 
         assertEquals(1, destination.recordCount())

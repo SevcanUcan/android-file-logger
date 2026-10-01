@@ -7,5 +7,7 @@ data class LogRecord(
     val message: String,
     val throwable: Throwable? = null,
     val threadName: String,
-    val processName: String
+    val processName: String,
+    val attributes: Map<String, String> = emptyMap(),
+    val throwableText: String? = null
 )

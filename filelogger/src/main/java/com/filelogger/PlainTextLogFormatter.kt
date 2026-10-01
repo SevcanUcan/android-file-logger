@@ -1,5 +1,6 @@
 package com.filelogger
 
+import com.google.gson.Gson
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -18,12 +19,17 @@ class PlainTextLogFormatter : LogFormatter {
             append(record.threadName)
             append(", process=")
             append(record.processName)
-            append("] ")
+            append("]")
+            if (record.attributes.isNotEmpty()) {
+                append("[attributes=")
+                append(gson.toJson(record.attributes))
+                append("]")
+            }
+            append(" ")
             append(record.message)
         }
 
-        val throwableSection = record.throwable
-            ?.stackTraceString()
+        val throwableSection = (record.throwableText ?: record.throwable?.stackTraceString())
             ?.let { "\n$it" }
             .orEmpty()
 
@@ -33,5 +39,6 @@ class PlainTextLogFormatter : LogFormatter {
     private companion object {
         private val timestampFormatter =
             SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+        private val gson = Gson()
     }
 }

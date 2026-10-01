@@ -6,7 +6,7 @@ This document describes the current architecture of `android-file-logger`, the r
 
 The library now has a small but production-oriented core:
 
-- structured log records
+- structured log records with global and per-event attributes
 - pluggable destinations
 - Logcat and file output
 - JSON and plain text formatters
@@ -20,12 +20,20 @@ The library now has a small but production-oriented core:
 - lifecycle auto flush on background/low-memory signals
 - crash capture with a recent in-memory log buffer
 - session-based log folders
-- zip export with optional line redaction and diagnostics metadata
+- write-time destination redaction plus optional export redaction
+- runtime collection consent and local/remote data deletion
+- bounded support reports with app/device environment and custom diagnostic sections
+- bounded, redacted breadcrumb timelines with crash persistence
+- zip export with diagnostics metadata
 - public diagnostics for queue pressure and current log files
 - runtime per-tag log-level overrides
 - lazy logging overloads for expensive messages
 - builder-based config creation
 - custom destination attachment
+- stored-log query by level, tag, keyword, timestamp, and session
+- write/flush/rotation and level-count metrics
+- fault-injectable file operations
+- optional OkHttp, remote delivery, and Compose viewer modules
 
 ## Public API
 
@@ -38,12 +46,16 @@ FileLogger.init(
 )
 
 FileLogger.d("Startup", "Logger ready")
+FileLogger.i("Startup", "Initial data loaded")
 FileLogger.w("Sync", "Retry scheduled")
 FileLogger.e("Crash", "Unexpected failure", throwable)
 FileLogger.flush()
 FileLogger.shutdown()
 
 val archive = FileLogger.exportLogs()
+val supportReport = FileLogger.createSupportReport(
+    SupportReportOptions(userNote = "Sync stopped", sections = mapOf("sync" to syncState))
+)
 val diagnostics = FileLogger.diagnostics()
 val session = FileLogger.session()
 ```
@@ -79,12 +91,15 @@ a subsequent `init()` call. Custom destinations that own resources can implement
 - tag
 - message
 - throwable
+- redacted throwable text
+- string attributes
 - thread name
 - process name
 
 `LogLevel` currently supports:
 
 - `DEBUG`
+- `INFO`
 - `WARN`
 - `ERROR`
 
@@ -107,15 +122,21 @@ Each level has a priority so `LoggerConfig.minimumLogLevel` can filter records b
 - `autoFlushOnAppBackground`
 - `crashCaptureEnabled`
 - `crashBufferSize`
+- `breadcrumbCapacity`
+- `maxBreadcrumbAttributes`
+- `maxBreadcrumbBytes`
 - `sessionLoggingEnabled`
 - `sessionId`
 - `sessionFolderPrefix`
 - `customDestinations`
+- `redactor`
+- `collectionEnabled`
 
 Two presets exist:
 
 - `LoggerConfig.dev()`: verbose, plain text, longer retention, larger queue
-- `LoggerConfig.prod()`: `WARN+`, JSON, tighter retention, production defaults
+- `LoggerConfig.prod()`: `WARN+`, JSON, write-time sensitive-data redaction,
+  tighter retention, and production defaults
 
 The default constructor still exists for simple usage, but callers should prefer an explicit preset in real apps.
 
@@ -152,6 +173,21 @@ FileLogger.e("Sync", throwable) { "Sync failed for ${account.id}" }
 
 The message lambda is only evaluated when the level is loggable for that tag.
 
+Global context and event attributes provide queryable metadata without embedding it
+into message text:
+
+```kotlin
+FileLogger.putContext("build", BuildConfig.VERSION_NAME)
+FileLogger.i(
+    "Checkout",
+    "Payment submitted",
+    mapOf("orderId" to order.id)
+)
+```
+
+Event attributes override global values with the same key. Context can be inspected,
+removed, or cleared with `context()`, `removeContext()`, and `clearContext()`.
+
 ## Destination Pipeline
 
 Default flow:
@@ -159,14 +195,15 @@ Default flow:
 1. `FileLogger` receives a log call.
 2. `DefaultLogger` applies the minimum level policy.
 3. `DefaultLogger` creates a `LogRecord`.
-4. `CompositeLogDestination` fans the record out.
-5. `LogcatDestination` writes immediately to Logcat.
-6. File output goes through `ErrorSyncFallbackDestination`.
-7. Non-error records go through `AsyncLogDestination`.
-8. `ERROR` records go directly to `FileLogDestination` and are flushed.
-9. `FileLogDestination` formats, rotates, writes, and can flush the file descriptor.
-10. Optional custom destinations receive the same record.
-11. Optional recent log buffer stores the last N records for crash capture.
+4. `RedactingLogDestination` sanitizes message, attribute values, and throwable text.
+5. `CompositeLogDestination` fans the sanitized record out.
+6. `LogcatDestination` writes immediately to Logcat.
+7. File output goes through `ErrorSyncFallbackDestination`.
+8. Non-error records go through `AsyncLogDestination`.
+9. `ERROR` records go directly to `FileLogDestination` and are flushed.
+10. `FileLogDestination` formats, rotates, writes, and can flush the file descriptor.
+11. Optional custom destinations receive the same sanitized record.
+12. Optional recent log buffer stores the last N sanitized records for crash capture.
 
 ## Async Queue
 
@@ -246,6 +283,32 @@ When `crashCaptureEnabled` is true, the default pipeline includes a `RecentLogBu
 
 This is best-effort crash capture. It helps with Kotlin/Java uncaught exceptions, but cannot cover every native crash or OS kill scenario.
 
+## Write-Time Privacy And Consent
+
+`LoggerConfig.redactor` is applied once around the complete destination composite.
+Messages, attribute values, and formatted throwable text are sanitized before Logcat,
+disk, the recent crash buffer, custom destinations, or remote delivery can observe a
+record. The original `Throwable` is removed after its sanitized text is produced so a
+custom destination cannot accidentally read the unredacted exception message.
+
+`LoggerConfig.prod()` uses `LogRedactor.DEFAULT_SENSITIVE`. Development configuration
+keeps `LogRedactor.NONE` so local debugging remains explicit and unsurprising. Tags and
+attribute keys are kept intact for indexing and must be treated as non-sensitive names.
+
+Applications can bind collection to consent and account lifecycle:
+
+```kotlin
+FileLogger.setCollectionEnabled(consentGranted)
+FileLogger.setCollectionEnabled(false, deleteExistingData = true)
+FileLogger.deletePendingUploads()
+FileLogger.deleteAllLogs(includeExports = true)
+```
+
+Disabled collection rejects new records and crash snapshots. Full deletion pauses
+collection, flushes queued work, invokes `ErasableLogDestination` implementations,
+and removes session logs and optionally support exports. The remote destination uses
+this contract to clear both its memory queue and persistent spool.
+
 ## Export And Redaction
 
 `FileLogger.exportLogs()` flushes the pipeline and writes current session log files to a zip archive.
@@ -254,7 +317,9 @@ This is best-effort crash capture. It helps with Kotlin/Java uncaught exceptions
 val archive = FileLogger.exportLogs()
 ```
 
-Callers can provide a `LogRedactor` to sanitize lines before they enter the zip:
+Write-time redaction is the primary privacy boundary. Callers can additionally provide
+a `LogRedactor` to sanitize historical or externally-created lines before they enter
+the zip:
 
 ```kotlin
 FileLogger.exportLogs(
@@ -275,6 +340,49 @@ It masks common email addresses, bearer tokens, password/token/secret/api-key st
 Every archive also includes `diagnostics.json` with app package, process name, session metadata, queue diagnostics, and the effective logger policy. This gives support and QA enough context to understand an archive without opening the app.
 
 `FileLogger.createShareIntent(uri)` returns an `ACTION_SEND` intent for an already exposed content `Uri`. The library does not declare a `FileProvider`; host apps should expose the archive with their own provider policy.
+
+## Support Reports
+
+`FileLogger.createSupportReport()` builds a single support artifact on top of the
+same flush and ZIP pipeline. A report contains:
+
+- current process log files, unless `includeLogs` is false
+- `diagnostics.json` with logger health and effective policy
+- `support-report.json` with schema/report IDs and app/device environment
+- optional redacted `user-note.txt`
+- optional redacted, application-owned `sections/*.txt`
+
+The environment includes package/version, Android SDK/release, manufacturer/model,
+supported ABIs, and locale. It does not collect Android ID, advertising ID, serial,
+account details, IP/MAC addresses, or location.
+
+`SupportReportOptions` defaults to `LogRedactor.DEFAULT_SENSITIVE`, at most 16 custom
+sections, 128 KiB per supplemental section, and 1 MiB across the note and sections.
+Invalid section names, count overflows, individual overflows, and aggregate overflows
+fail before an archive is returned. Section names are non-sensitive identifiers.
+This keeps accidental database dumps and path traversal out of the support package.
+
+## Breadcrumb Timeline
+
+`FileLogger.addBreadcrumb()` captures navigation, user actions, and state transitions
+that are useful during support without turning each action into a full log record.
+Breadcrumbs use the configured redactor immediately and remain in a thread-safe bounded memory
+buffer. By default, the buffer keeps 64 entries; each entry permits 16 attributes and
+8 KiB across its message, keys, and values.
+
+```kotlin
+FileLogger.addBreadcrumb(
+    message = "Retry requested",
+    category = "sync",
+    attributes = mapOf("attempt" to "2")
+)
+```
+
+The current timeline appears as `breadcrumbs.json` in support reports. Setting
+`SupportReportOptions.includeBreadcrumbs` to false omits it. Disabled collection
+rejects new breadcrumbs, while deletion and shutdown clear the in-memory buffer.
+During an uncaught exception, the crash handler snapshots breadcrumbs before adding
+new crash records and synchronously persists them with `Breadcrumb/<category>` tags.
 
 ## Diagnostics
 
@@ -343,21 +451,23 @@ Unit tests cover:
 - tag-specific filtering
 - config builder
 
-## Remaining Gaps
+## Extension Modules
 
-These are the next meaningful gaps after the recent reliability work:
+- `filelogger-okhttp` records method, URL, status, and duration with opt-in bounded
+  text bodies and sensitive-header masking.
+- `filelogger-remote` writes batches to an offline disk spool before gzip upload,
+  retries with exponential backoff, and replays pending batches after restart.
+- `filelogger-ui` exposes a Compose viewer with search, level filtering, refresh,
+  throwable rendering, and lazy scrolling.
 
-- **Integration tests:** current coverage is mostly JVM unit tests; Android instrumentation should verify real app file paths, lifecycle, and process behavior.
-- **Fault injection:** failing file writes, rename failures, and disk-full conditions need dedicated tests.
-- **OkHttp network logging:** no interceptor extension module yet.
-- **Remote upload destination:** no batching, retry, gzip, or upload destination yet.
-- **In-app log viewer:** diagnostics and export exist, but no UI component yet.
-- **Structured query API:** export exists, but there is no public log reader/filter API over existing files yet.
+## Verification Boundaries
 
-## Recommended Next Work
+Unit tests cover fault injection, queue pressure, formatters, retention, export,
+query, metrics, OkHttp, remote upload, and viewer filtering. Android device tests
+cover real app storage, concurrent writes from two processes, and an actual
+uncaught exception in a secondary process.
 
-1. Add Android instrumentation tests for init, export, lifecycle callback, and app file paths.
-2. Add fault-injection tests for failing file writes, failed `renameTo`, and disk-full behavior.
-3. Add an optional OkHttp extension module.
-4. Add a remote upload destination with batching, gzip, retry, and backoff.
-5. Build an in-app log viewer on top of diagnostics, filtering, and export.
+Native crashes, ANRs, sudden power loss, and force-stop remain platform boundaries:
+the process may terminate before managed-code callbacks or `fsync()` complete.
+Applications needing those guarantees should combine FileLogger exports with a
+dedicated native crash/ANR reporting service.

@@ -2,14 +2,17 @@ package com.filelogger
 
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicLong
 
 internal class FileRotationPolicy(
     private val maxFileSize: Long,
     private val maxBackupFiles: Int,
     private val maxTotalLogSize: Long = Long.MAX_VALUE,
     private val maxLogAgeMillis: Long = Long.MAX_VALUE,
-    private val currentTimeMillis: () -> Long = System::currentTimeMillis
+    private val currentTimeMillis: () -> Long = System::currentTimeMillis,
+    private val fileSystem: LogFileSystem = SystemLogFileSystem
 ) {
+    private val rotations = AtomicLong()
 
     fun rotateIfNeeded(file: File, incomingBytes: ByteArray) {
         enforceRetention(file)
@@ -18,18 +21,21 @@ internal class FileRotationPolicy(
             return
         }
 
-        if (!file.exists()) {
+        if (!fileSystem.exists(file)) {
             return
         }
 
-        val projectedSize = file.length() + incomingBytes.size
+        val projectedSize = fileSystem.length(file) + incomingBytes.size
         if (projectedSize <= maxFileSize) {
             return
         }
 
         rotate(file)
+        rotations.incrementAndGet()
         enforceRetention(file)
     }
+
+    fun rotationCount(): Long = rotations.get()
 
     private fun rotate(file: File) {
         if (maxBackupFiles <= 0) {
@@ -38,13 +44,13 @@ internal class FileRotationPolicy(
         }
 
         val oldestBackup = backupFile(file, maxBackupFiles)
-        if (oldestBackup.exists()) {
+        if (fileSystem.exists(oldestBackup)) {
             deleteOrThrow(oldestBackup)
         }
 
         for (index in maxBackupFiles - 1 downTo 1) {
             val source = backupFile(file, index)
-            if (source.exists()) {
+            if (fileSystem.exists(source)) {
                 renameOrThrow(source, backupFile(file, index + 1))
             }
         }
@@ -70,7 +76,7 @@ internal class FileRotationPolicy(
         val threshold = currentTimeMillis() - maxLogAgeMillis
         logFiles
             .filter { it != activeFile }
-            .filter { it.lastModified() < threshold }
+            .filter { fileSystem.lastModified(it) < threshold }
             .forEach { deleteOrThrow(it) }
     }
 
@@ -79,27 +85,27 @@ internal class FileRotationPolicy(
             return
         }
 
-        var totalSize = logFiles.sumOf { it.length() }
+        var totalSize = logFiles.sumOf { fileSystem.length(it) }
         if (totalSize <= maxTotalLogSize) {
             return
         }
 
         logFiles
             .filter { it != activeFile }
-            .sortedBy { it.lastModified() }
+            .sortedBy { fileSystem.lastModified(it) }
             .forEach { candidate ->
                 if (totalSize <= maxTotalLogSize) {
                     return
                 }
 
-                val size = candidate.length()
+                val size = fileSystem.length(candidate)
                 deleteOrThrow(candidate)
                 totalSize -= size
             }
     }
 
     private fun deleteOrThrow(file: File) {
-        if (file.exists() && !file.delete()) {
+        if (fileSystem.exists(file) && !fileSystem.delete(file)) {
             throw IOException("Failed to delete log file: ${file.absolutePath}")
         }
     }
@@ -108,18 +114,18 @@ internal class FileRotationPolicy(
         source: File,
         target: File
     ) {
-        if (!source.renameTo(target)) {
+        if (!fileSystem.rename(source, target)) {
             throw IOException("Failed to rename log file from ${source.absolutePath} to ${target.absolutePath}")
         }
     }
 
     private fun logFiles(file: File): List<File> {
         return file.parentFile
-            ?.listFiles { candidate ->
+            ?.let(fileSystem::listFiles)
+            .orEmpty()
+            .filter { candidate ->
                 candidate.isFile &&
                     (candidate.name == file.name || candidate.name.startsWith("${file.name}."))
             }
-            ?.toList()
-            .orEmpty()
     }
 }

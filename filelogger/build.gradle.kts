@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    `maven-publish`
 }
 
 android {
@@ -30,11 +31,32 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    publishing {
+        singleVariant("release") { withSourcesJar() }
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
+                artifactId = "filelogger"
+                pom {
+                    name.set("Android FileLogger Core")
+                    description.set("Reliable structured file logging for Android")
+                    url.set("https://github.com/SevcanUcan/android-file-logger")
+                    licenses { license { name.set("MIT License"); url.set("https://opensource.org/licenses/MIT") } }
+                }
+            }
+        }
+        repositories { maven { name = "test"; url = rootProject.layout.buildDirectory.dir("maven-repo").get().asFile.toURI() } }
+    }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation("com.google.code.gson:gson:2.11.0")
+    implementation(libs.gson)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

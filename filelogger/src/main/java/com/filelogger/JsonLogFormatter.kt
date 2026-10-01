@@ -14,9 +14,10 @@ class JsonLogFormatter : LogFormatter {
                 "level" to record.level.shortName,
                 "tag" to record.tag,
                 "message" to record.message,
-                "throwable" to record.throwable?.stackTraceString(),
+                "throwable" to (record.throwableText ?: record.throwable?.stackTraceString()),
                 "thread" to record.threadName,
-                "process" to record.processName
+                "process" to record.processName,
+                "attributes" to record.attributes
             )
         ) + "\n"
     }

@@ -7,7 +7,8 @@ internal fun testRecord(
     message: String = "Hello",
     throwable: Throwable? = null,
     threadName: String = "main",
-    processName: String = "com.test.app"
+    processName: String = "com.test.app",
+    attributes: Map<String, String> = emptyMap()
 ): LogRecord {
     return LogRecord(
         timestampMillis = timestampMillis,
@@ -16,6 +17,7 @@ internal fun testRecord(
         message = message,
         throwable = throwable,
         threadName = threadName,
-        processName = processName
+        processName = processName,
+        attributes = attributes
     )
 }
