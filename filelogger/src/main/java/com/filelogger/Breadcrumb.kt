@@ -1,12 +1,17 @@
 package com.filelogger
 
+import com.google.gson.annotations.SerializedName
 import java.nio.charset.StandardCharsets
 import java.util.ArrayDeque
 
 data class Breadcrumb(
+    @SerializedName("timestampMillis")
     val timestampMillis: Long,
+    @SerializedName("category")
     val category: String,
+    @SerializedName("message")
     val message: String,
+    @SerializedName("attributes")
     val attributes: Map<String, String> = emptyMap()
 )
 

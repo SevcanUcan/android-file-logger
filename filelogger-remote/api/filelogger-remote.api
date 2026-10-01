@@ -1,0 +1,53 @@
+public final class com/filelogger/remote/RemoteLogBatch {
+	public fun <init> ([BLjava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> ([BLjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()[B
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy ([BLjava/lang/String;Ljava/lang/String;)Lcom/filelogger/remote/RemoteLogBatch;
+	public static synthetic fun copy$default (Lcom/filelogger/remote/RemoteLogBatch;[BLjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/filelogger/remote/RemoteLogBatch;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContentEncoding ()Ljava/lang/String;
+	public final fun getContentType ()Ljava/lang/String;
+	public final fun getPayload ()[B
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/filelogger/remote/RemoteLogConfig {
+	public fun <init> (Ljava/io/File;IIIIJZ)V
+	public synthetic fun <init> (Ljava/io/File;IIIIJZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/io/File;
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()J
+	public final fun component7 ()Z
+	public final fun copy (Ljava/io/File;IIIIJZ)Lcom/filelogger/remote/RemoteLogConfig;
+	public static synthetic fun copy$default (Lcom/filelogger/remote/RemoteLogConfig;Ljava/io/File;IIIIJZILjava/lang/Object;)Lcom/filelogger/remote/RemoteLogConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBatchSize ()I
+	public final fun getGzipEnabled ()Z
+	public final fun getInitialBackoffMillis ()J
+	public final fun getMaxPendingBatches ()I
+	public final fun getMaxRetries ()I
+	public final fun getQueueCapacity ()I
+	public final fun getSpoolDirectory ()Ljava/io/File;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/filelogger/remote/RemoteLogDestination : com/filelogger/CloseableLogDestination, com/filelogger/DiagnosticLogDestination, com/filelogger/ErasableLogDestination {
+	public fun <init> (Lcom/filelogger/remote/RemoteLogUploader;Lcom/filelogger/remote/RemoteLogConfig;)V
+	public fun close (J)Z
+	public fun diagnostics ()Lcom/filelogger/LogDiagnostics;
+	public fun erasePendingData (J)Z
+	public fun flush (J)Z
+	public fun write (Lcom/filelogger/LogRecord;)V
+}
+
+public abstract interface class com/filelogger/remote/RemoteLogUploader {
+	public abstract fun upload (Lcom/filelogger/remote/RemoteLogBatch;)Z
+}
+

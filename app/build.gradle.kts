@@ -20,12 +20,24 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+        create("minified") {
+            initWith(getByName("release"))
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFile("proguard-minified-test-rules.pro")
+            matchingFallbacks += listOf("release", "debug")
+        }
+    }
+    testBuildType = "minified"
+    sourceSets.getByName("minified") {
+        java.srcDir("src/debug/java")
+        manifest.srcFile("src/debug/AndroidManifest.xml")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

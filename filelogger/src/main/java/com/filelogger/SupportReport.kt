@@ -5,6 +5,7 @@ import android.content.pm.PackageInfo
 import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
 import com.google.gson.GsonBuilder
+import com.google.gson.annotations.SerializedName
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.UUID
@@ -33,14 +34,23 @@ data class SupportReportOptions(
 }
 
 internal data class SupportReportEnvironment(
+    @SerializedName("packageName")
     val packageName: String,
+    @SerializedName("versionName")
     val versionName: String?,
+    @SerializedName("versionCode")
     val versionCode: Long,
+    @SerializedName("androidSdk")
     val androidSdk: Int,
+    @SerializedName("androidRelease")
     val androidRelease: String,
+    @SerializedName("manufacturer")
     val manufacturer: String,
+    @SerializedName("model")
     val model: String,
+    @SerializedName("supportedAbis")
     val supportedAbis: List<String>,
+    @SerializedName("locale")
     val locale: String
 ) {
     companion object {
@@ -158,13 +168,21 @@ internal object SupportReportBundle {
         if (endsWith('\n')) this else "$this\n"
 
     private data class SupportReportManifest(
+        @SerializedName("schemaVersion")
         val schemaVersion: Int,
+        @SerializedName("reportId")
         val reportId: String,
+        @SerializedName("generatedAtMillis")
         val generatedAtMillis: Long,
+        @SerializedName("includesLogs")
         val includesLogs: Boolean,
+        @SerializedName("includesUserNote")
         val includesUserNote: Boolean,
+        @SerializedName("breadcrumbCount")
         val breadcrumbCount: Int,
+        @SerializedName("sections")
         val sections: List<String>,
+        @SerializedName("environment")
         val environment: SupportReportEnvironment
     )
 }

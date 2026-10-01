@@ -1,0 +1,450 @@
+public final class com/filelogger/AsyncOverflowStrategy : java/lang/Enum {
+	public static final field BLOCK Lcom/filelogger/AsyncOverflowStrategy;
+	public static final field DROP_NEWEST Lcom/filelogger/AsyncOverflowStrategy;
+	public static final field DROP_OLDEST Lcom/filelogger/AsyncOverflowStrategy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/filelogger/AsyncOverflowStrategy;
+	public static fun values ()[Lcom/filelogger/AsyncOverflowStrategy;
+}
+
+public final class com/filelogger/Breadcrumb {
+	public fun <init> (JLjava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public synthetic fun <init> (JLjava/lang/String;Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun copy (JLjava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lcom/filelogger/Breadcrumb;
+	public static synthetic fun copy$default (Lcom/filelogger/Breadcrumb;JLjava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lcom/filelogger/Breadcrumb;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributes ()Ljava/util/Map;
+	public final fun getCategory ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getTimestampMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/filelogger/CloseableLogDestination : com/filelogger/FlushableLogDestination {
+	public abstract fun close (J)Z
+}
+
+public final class com/filelogger/CloseableLogDestination$DefaultImpls {
+	public static synthetic fun close$default (Lcom/filelogger/CloseableLogDestination;JILjava/lang/Object;)Z
+}
+
+public final class com/filelogger/DefaultLogger : com/filelogger/StructuredLogger {
+	public fun d (Ljava/lang/String;Ljava/lang/String;)V
+	public fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public fun i (Ljava/lang/String;Ljava/lang/String;)V
+	public fun log (Lcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public fun w (Ljava/lang/String;Ljava/lang/String;)V
+}
+
+public abstract interface class com/filelogger/DiagnosticLogDestination {
+	public abstract fun diagnostics ()Lcom/filelogger/LogDiagnostics;
+}
+
+public abstract interface class com/filelogger/ErasableLogDestination {
+	public abstract fun erasePendingData (J)Z
+}
+
+public final class com/filelogger/ErasableLogDestination$DefaultImpls {
+	public static synthetic fun erasePendingData$default (Lcom/filelogger/ErasableLogDestination;JILjava/lang/Object;)Z
+}
+
+public final class com/filelogger/FileLogger : com/filelogger/Logger {
+	public static final field INSTANCE Lcom/filelogger/FileLogger;
+	public final fun addBreadcrumb (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Z
+	public static synthetic fun addBreadcrumb$default (Lcom/filelogger/FileLogger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Z
+	public final fun breadcrumbs ()Ljava/util/List;
+	public final fun clearBreadcrumbs ()V
+	public final fun clearContext ()V
+	public final fun clearTagMinimumLevels ()V
+	public final fun context ()Ljava/util/Map;
+	public final fun createShareIntent (Landroid/net/Uri;Ljava/lang/String;)Landroid/content/Intent;
+	public static synthetic fun createShareIntent$default (Lcom/filelogger/FileLogger;Landroid/net/Uri;Ljava/lang/String;ILjava/lang/Object;)Landroid/content/Intent;
+	public final fun createSupportReport (Lcom/filelogger/SupportReportOptions;Ljava/io/File;)Ljava/io/File;
+	public static synthetic fun createSupportReport$default (Lcom/filelogger/FileLogger;Lcom/filelogger/SupportReportOptions;Ljava/io/File;ILjava/lang/Object;)Ljava/io/File;
+	public fun d (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun d (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public final fun d (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+	public final fun deleteAllLogs (ZJ)Z
+	public static synthetic fun deleteAllLogs$default (Lcom/filelogger/FileLogger;ZJILjava/lang/Object;)Z
+	public final fun deletePendingUploads (J)Z
+	public static synthetic fun deletePendingUploads$default (Lcom/filelogger/FileLogger;JILjava/lang/Object;)Z
+	public final fun diagnostics ()Lcom/filelogger/LogDiagnostics;
+	public fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public final fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public final fun e (Ljava/lang/String;Ljava/lang/Throwable;Lkotlin/jvm/functions/Function0;)V
+	public static synthetic fun e$default (Lcom/filelogger/FileLogger;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;ILjava/lang/Object;)V
+	public static synthetic fun e$default (Lcom/filelogger/FileLogger;Ljava/lang/String;Ljava/lang/Throwable;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+	public final fun exportLogs (Ljava/io/File;Lcom/filelogger/LogRedactor;)Ljava/io/File;
+	public static synthetic fun exportLogs$default (Lcom/filelogger/FileLogger;Ljava/io/File;Lcom/filelogger/LogRedactor;ILjava/lang/Object;)Ljava/io/File;
+	public final fun flush (J)Z
+	public static synthetic fun flush$default (Lcom/filelogger/FileLogger;JILjava/lang/Object;)Z
+	public fun i (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun i (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public final fun i (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+	public final fun init (Landroid/content/Context;Lcom/filelogger/LoggerConfig;)V
+	public static synthetic fun init$default (Lcom/filelogger/FileLogger;Landroid/content/Context;Lcom/filelogger/LoggerConfig;ILjava/lang/Object;)V
+	public final fun install (Landroid/content/Context;Lcom/filelogger/LoggerConfig;)V
+	public static synthetic fun install$default (Lcom/filelogger/FileLogger;Landroid/content/Context;Lcom/filelogger/LoggerConfig;ILjava/lang/Object;)V
+	public final fun isCollectionEnabled ()Z
+	public final fun isLoggable (Lcom/filelogger/LogLevel;Ljava/lang/String;)Z
+	public final fun log (Lcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public static synthetic fun log$default (Lcom/filelogger/FileLogger;Lcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;ILjava/lang/Object;)V
+	public final fun putContext (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun putContext (Ljava/util/Map;)V
+	public final fun readLogs (Lcom/filelogger/LogQuery;)Ljava/util/List;
+	public final fun readLogs (Ljava/lang/String;Lcom/filelogger/LogQuery;)Ljava/util/List;
+	public static synthetic fun readLogs$default (Lcom/filelogger/FileLogger;Lcom/filelogger/LogQuery;ILjava/lang/Object;)Ljava/util/List;
+	public static synthetic fun readLogs$default (Lcom/filelogger/FileLogger;Ljava/lang/String;Lcom/filelogger/LogQuery;ILjava/lang/Object;)Ljava/util/List;
+	public final fun removeContext (Ljava/lang/String;)Ljava/lang/String;
+	public final fun session ()Lcom/filelogger/LogSession;
+	public final fun setCollectionEnabled (ZZJ)Z
+	public static synthetic fun setCollectionEnabled$default (Lcom/filelogger/FileLogger;ZZJILjava/lang/Object;)Z
+	public final fun setTagMinimumLevel (Ljava/lang/String;Lcom/filelogger/LogLevel;)V
+	public final fun shutdown (J)Z
+	public static synthetic fun shutdown$default (Lcom/filelogger/FileLogger;JILjava/lang/Object;)Z
+	public fun w (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun w (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public final fun w (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+}
+
+public abstract interface class com/filelogger/FlushableLogDestination : com/filelogger/LogDestination {
+	public static final field Companion Lcom/filelogger/FlushableLogDestination$Companion;
+	public static final field DEFAULT_FLUSH_TIMEOUT_MILLIS J
+	public abstract fun flush (J)Z
+}
+
+public final class com/filelogger/FlushableLogDestination$Companion {
+	public static final field DEFAULT_FLUSH_TIMEOUT_MILLIS J
+}
+
+public final class com/filelogger/FlushableLogDestination$DefaultImpls {
+	public static synthetic fun flush$default (Lcom/filelogger/FlushableLogDestination;JILjava/lang/Object;)Z
+}
+
+public final class com/filelogger/JsonLogFormatter : com/filelogger/LogFormatter {
+	public fun <init> ()V
+	public fun format (Lcom/filelogger/LogRecord;)Ljava/lang/String;
+}
+
+public abstract interface class com/filelogger/LogDestination {
+	public abstract fun write (Lcom/filelogger/LogRecord;)V
+}
+
+public final class com/filelogger/LogDiagnostics {
+	public fun <init> ()V
+	public fun <init> (JJJJJJIIJJJJJJJILjava/util/List;)V
+	public synthetic fun <init> (JJJJJJIIJJJJJJJILjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component10 ()J
+	public final fun component11 ()J
+	public final fun component12 ()J
+	public final fun component13 ()J
+	public final fun component14 ()J
+	public final fun component15 ()J
+	public final fun component16 ()I
+	public final fun component17 ()Ljava/util/List;
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()J
+	public final fun component6 ()J
+	public final fun component7 ()I
+	public final fun component8 ()I
+	public final fun component9 ()J
+	public final fun copy (JJJJJJIIJJJJJJJILjava/util/List;)Lcom/filelogger/LogDiagnostics;
+	public static synthetic fun copy$default (Lcom/filelogger/LogDiagnostics;JJJJJJIIJJJJJJJILjava/util/List;ILjava/lang/Object;)Lcom/filelogger/LogDiagnostics;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAsyncQueueCapacity ()I
+	public final fun getCurrentLogFiles ()Ljava/util/List;
+	public final fun getDebugRecords ()J
+	public final fun getDroppedAsyncRecords ()J
+	public final fun getErrorRecords ()J
+	public final fun getFailedRemoteBatches ()J
+	public final fun getFileFlushFailures ()J
+	public final fun getFileRotations ()J
+	public final fun getFileWriteCount ()J
+	public final fun getFileWriteFailures ()J
+	public final fun getInfoRecords ()J
+	public final fun getPendingRemoteBatches ()I
+	public final fun getQueuedAsyncRecords ()I
+	public final fun getTotalFileWriteDurationNanos ()J
+	public final fun getTotalRecords ()J
+	public final fun getUploadedRemoteBatches ()J
+	public final fun getWarningRecords ()J
+	public fun hashCode ()I
+	public final fun plus (Lcom/filelogger/LogDiagnostics;)Lcom/filelogger/LogDiagnostics;
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/filelogger/LogFormatter {
+	public abstract fun format (Lcom/filelogger/LogRecord;)Ljava/lang/String;
+}
+
+public final class com/filelogger/LogLevel : java/lang/Enum {
+	public static final field DEBUG Lcom/filelogger/LogLevel;
+	public static final field ERROR Lcom/filelogger/LogLevel;
+	public static final field INFO Lcom/filelogger/LogLevel;
+	public static final field WARN Lcom/filelogger/LogLevel;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getShortName ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lcom/filelogger/LogLevel;
+	public static fun values ()[Lcom/filelogger/LogLevel;
+}
+
+public final class com/filelogger/LogQuery {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/Set;Ljava/util/Set;Ljava/util/Map;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;I)V
+	public synthetic fun <init> (Ljava/util/Set;Ljava/util/Set;Ljava/util/Map;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/Set;
+	public final fun component2 ()Ljava/util/Set;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()I
+	public final fun copy (Ljava/util/Set;Ljava/util/Set;Ljava/util/Map;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;I)Lcom/filelogger/LogQuery;
+	public static synthetic fun copy$default (Lcom/filelogger/LogQuery;Ljava/util/Set;Ljava/util/Set;Ljava/util/Map;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Long;IILjava/lang/Object;)Lcom/filelogger/LogQuery;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributes ()Ljava/util/Map;
+	public final fun getFromTimestampMillis ()Ljava/lang/Long;
+	public final fun getKeyword ()Ljava/lang/String;
+	public final fun getLevels ()Ljava/util/Set;
+	public final fun getLimit ()I
+	public final fun getTags ()Ljava/util/Set;
+	public final fun getToTimestampMillis ()Ljava/lang/Long;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/filelogger/LogRecord {
+	public fun <init> (JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)V
+	public synthetic fun <init> (JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()Lcom/filelogger/LogLevel;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/Throwable;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;)Lcom/filelogger/LogRecord;
+	public static synthetic fun copy$default (Lcom/filelogger/LogRecord;JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;ILjava/lang/Object;)Lcom/filelogger/LogRecord;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributes ()Ljava/util/Map;
+	public final fun getLevel ()Lcom/filelogger/LogLevel;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getProcessName ()Ljava/lang/String;
+	public final fun getTag ()Ljava/lang/String;
+	public final fun getThreadName ()Ljava/lang/String;
+	public final fun getThrowable ()Ljava/lang/Throwable;
+	public final fun getThrowableText ()Ljava/lang/String;
+	public final fun getTimestampMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/filelogger/LogRedactor {
+	public static final field Companion Lcom/filelogger/LogRedactor$Companion;
+	public abstract fun redact (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class com/filelogger/LogRedactor$Companion {
+	public final fun chain ([Lcom/filelogger/LogRedactor;)Lcom/filelogger/LogRedactor;
+	public final fun getDEFAULT_SENSITIVE ()Lcom/filelogger/LogRedactor;
+	public final fun getNONE ()Lcom/filelogger/LogRedactor;
+}
+
+public final class com/filelogger/LogSession {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;J)Lcom/filelogger/LogSession;
+	public static synthetic fun copy$default (Lcom/filelogger/LogSession;Ljava/lang/String;Ljava/lang/String;JILjava/lang/Object;)Lcom/filelogger/LogSession;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDirectoryName ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getStartedAtMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/filelogger/Logger {
+	public abstract fun d (Ljava/lang/String;Ljava/lang/String;)V
+	public abstract fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public abstract fun i (Ljava/lang/String;Ljava/lang/String;)V
+	public abstract fun w (Ljava/lang/String;Ljava/lang/String;)V
+}
+
+public final class com/filelogger/Logger$DefaultImpls {
+	public static synthetic fun e$default (Lcom/filelogger/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)V
+}
+
+public final class com/filelogger/LoggerConfig {
+	public static final field Companion Lcom/filelogger/LoggerConfig$Companion;
+	public fun <init> ()V
+	public fun <init> (JIJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/filelogger/LogLevel;Lcom/filelogger/LogFormatter;Lcom/filelogger/LogRedactor;ZILcom/filelogger/AsyncOverflowStrategy;ZZZZIIIIZLjava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (JIJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/filelogger/LogLevel;Lcom/filelogger/LogFormatter;Lcom/filelogger/LogRedactor;ZILcom/filelogger/AsyncOverflowStrategy;ZZZZIIIIZLjava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component10 ()Lcom/filelogger/LogRedactor;
+	public final fun component11 ()Z
+	public final fun component12 ()I
+	public final fun component13 ()Lcom/filelogger/AsyncOverflowStrategy;
+	public final fun component14 ()Z
+	public final fun component15 ()Z
+	public final fun component16 ()Z
+	public final fun component17 ()Z
+	public final fun component18 ()I
+	public final fun component19 ()I
+	public final fun component2 ()I
+	public final fun component20 ()I
+	public final fun component21 ()I
+	public final fun component22 ()Z
+	public final fun component23 ()Ljava/lang/String;
+	public final fun component24 ()Ljava/lang/String;
+	public final fun component25 ()Ljava/util/List;
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Lcom/filelogger/LogLevel;
+	public final fun component9 ()Lcom/filelogger/LogFormatter;
+	public final fun copy (JIJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/filelogger/LogLevel;Lcom/filelogger/LogFormatter;Lcom/filelogger/LogRedactor;ZILcom/filelogger/AsyncOverflowStrategy;ZZZZIIIIZLjava/lang/String;Ljava/lang/String;Ljava/util/List;)Lcom/filelogger/LoggerConfig;
+	public static synthetic fun copy$default (Lcom/filelogger/LoggerConfig;JIJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/filelogger/LogLevel;Lcom/filelogger/LogFormatter;Lcom/filelogger/LogRedactor;ZILcom/filelogger/AsyncOverflowStrategy;ZZZZIIIIZLjava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/filelogger/LoggerConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAsyncOverflowStrategy ()Lcom/filelogger/AsyncOverflowStrategy;
+	public final fun getAsyncQueueCapacity ()I
+	public final fun getAutoFlushOnAppBackground ()Z
+	public final fun getBreadcrumbCapacity ()I
+	public final fun getCollectionEnabled ()Z
+	public final fun getCrashBufferSize ()I
+	public final fun getCrashCaptureEnabled ()Z
+	public final fun getCustomDestinations ()Ljava/util/List;
+	public final fun getErrorSyncFallbackEnabled ()Z
+	public final fun getLogFileName ()Ljava/lang/String;
+	public final fun getLogFolder ()Ljava/lang/String;
+	public final fun getLogFormatter ()Lcom/filelogger/LogFormatter;
+	public final fun getMaxBackupFiles ()I
+	public final fun getMaxBreadcrumbAttributes ()I
+	public final fun getMaxBreadcrumbBytes ()I
+	public final fun getMaxFileSize ()J
+	public final fun getMaxLogAgeMillis ()J
+	public final fun getMaxTotalLogSize ()J
+	public final fun getMinimumLogLevel ()Lcom/filelogger/LogLevel;
+	public final fun getRedactor ()Lcom/filelogger/LogRedactor;
+	public final fun getSessionFolderPrefix ()Ljava/lang/String;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun getSessionLoggingEnabled ()Z
+	public final fun getUseProcessSpecificLogFiles ()Z
+	public final fun getZipPrefix ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/filelogger/LoggerConfig$Builder {
+	public fun <init> ()V
+	public final fun addDestination (Lcom/filelogger/LogDestination;)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun build ()Lcom/filelogger/LoggerConfig;
+	public final fun setAsyncOverflowStrategy (Lcom/filelogger/AsyncOverflowStrategy;)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setAsyncQueueCapacity (I)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setAutoFlushOnAppBackground (Z)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setBreadcrumbCapacity (I)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setCollectionEnabled (Z)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setCrashBufferSize (I)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setCrashCaptureEnabled (Z)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setErrorSyncFallbackEnabled (Z)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setLogFormatter (Lcom/filelogger/LogFormatter;)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setMaxBackupFiles (I)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setMaxBreadcrumbAttributes (I)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setMaxBreadcrumbBytes (I)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setMaxFileSize (J)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setMaxLogAgeMillis (J)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setMaxTotalLogSize (J)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setMinimumLogLevel (Lcom/filelogger/LogLevel;)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setRedactor (Lcom/filelogger/LogRedactor;)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setSessionFolderPrefix (Ljava/lang/String;)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setSessionId (Ljava/lang/String;)Lcom/filelogger/LoggerConfig$Builder;
+	public final fun setSessionLoggingEnabled (Z)Lcom/filelogger/LoggerConfig$Builder;
+}
+
+public final class com/filelogger/LoggerConfig$Companion {
+	public final fun dev ()Lcom/filelogger/LoggerConfig;
+	public final fun prod ()Lcom/filelogger/LoggerConfig;
+}
+
+public final class com/filelogger/PlainTextLogFormatter : com/filelogger/LogFormatter {
+	public fun <init> ()V
+	public fun format (Lcom/filelogger/LogRecord;)Ljava/lang/String;
+}
+
+public final class com/filelogger/StoredLogEntry {
+	public fun <init> (JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/filelogger/LogLevel;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Ljava/lang/String;)Lcom/filelogger/StoredLogEntry;
+	public static synthetic fun copy$default (Lcom/filelogger/StoredLogEntry;JLcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/filelogger/StoredLogEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributes ()Ljava/util/Map;
+	public final fun getLevel ()Lcom/filelogger/LogLevel;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getProcessName ()Ljava/lang/String;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun getSourceFileName ()Ljava/lang/String;
+	public final fun getTag ()Ljava/lang/String;
+	public final fun getThreadName ()Ljava/lang/String;
+	public final fun getThrowable ()Ljava/lang/String;
+	public final fun getTimestampMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/filelogger/SupportReportOptions {
+	public static final field Companion Lcom/filelogger/SupportReportOptions$Companion;
+	public static final field DEFAULT_MAX_SECTIONS I
+	public static final field DEFAULT_MAX_SECTION_BYTES I
+	public static final field DEFAULT_MAX_SUPPLEMENT_BYTES I
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/util/Map;ZZLcom/filelogger/LogRedactor;III)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Map;ZZLcom/filelogger/LogRedactor;IIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Lcom/filelogger/LogRedactor;
+	public final fun component6 ()I
+	public final fun component7 ()I
+	public final fun component8 ()I
+	public final fun copy (Ljava/lang/String;Ljava/util/Map;ZZLcom/filelogger/LogRedactor;III)Lcom/filelogger/SupportReportOptions;
+	public static synthetic fun copy$default (Lcom/filelogger/SupportReportOptions;Ljava/lang/String;Ljava/util/Map;ZZLcom/filelogger/LogRedactor;IIIILjava/lang/Object;)Lcom/filelogger/SupportReportOptions;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIncludeBreadcrumbs ()Z
+	public final fun getIncludeLogs ()Z
+	public final fun getMaxSectionBytes ()I
+	public final fun getMaxSections ()I
+	public final fun getMaxSupplementBytes ()I
+	public final fun getRedactor ()Lcom/filelogger/LogRedactor;
+	public final fun getSections ()Ljava/util/Map;
+	public final fun getUserNote ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/filelogger/SupportReportOptions$Companion {
+}
+
