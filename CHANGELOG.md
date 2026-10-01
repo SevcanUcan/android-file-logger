@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The project follows Semantic Versioning. Release candidates may change before the
 final `1.0.0` API baseline is declared stable.
 
+## [1.0.0-rc2] - 2026-10-01
+
+### Fixed
+
+- Removed the core module's unnecessary transitive AndroidX Core dependency so
+  applications on compileSdk 35 and Android Gradle Plugin 8.6 can consume the library.
+- Preserved support-report app version metadata with platform APIs back to API 24.
+
 ## [1.0.0-rc1] - 2026-10-01
 
 ### Added

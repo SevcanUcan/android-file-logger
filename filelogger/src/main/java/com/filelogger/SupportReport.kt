@@ -3,7 +3,6 @@ package com.filelogger
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.os.Build
-import androidx.core.content.pm.PackageInfoCompat
 import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
 import java.nio.charset.StandardCharsets
@@ -59,7 +58,7 @@ internal data class SupportReportEnvironment(
             return SupportReportEnvironment(
                 packageName = packageName,
                 versionName = packageInfo.versionName,
-                versionCode = PackageInfoCompat.getLongVersionCode(packageInfo),
+                versionCode = packageInfo.compatVersionCode(),
                 androidSdk = Build.VERSION.SDK_INT,
                 androidRelease = Build.VERSION.RELEASE.orEmpty(),
                 manufacturer = Build.MANUFACTURER.orEmpty(),
@@ -77,6 +76,10 @@ internal data class SupportReportEnvironment(
         } else {
             getPackageInfo(packageName, 0)
         }
+
+        @Suppress("DEPRECATION")
+        private fun PackageInfo.compatVersionCode(): Long =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) longVersionCode else versionCode.toLong()
     }
 }
 

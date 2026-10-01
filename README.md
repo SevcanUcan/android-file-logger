@@ -43,14 +43,14 @@ use the repository owner and tag:
 repositories { maven("https://jitpack.io") }
 
 dependencies {
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc1")
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc1") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc1") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc1")     // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc2")
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc2") // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc2") // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc2")     // optional
 }
 ```
 
-`1.0.0-rc1` is the release-candidate line. Final `1.0.0` publication remains
+`1.0.0-rc2` is the release-candidate line. Final `1.0.0` publication remains
 deferred until the candidate has completed external application validation.
 
 ## Quick start
