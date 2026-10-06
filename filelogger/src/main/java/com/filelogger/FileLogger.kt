@@ -444,6 +444,7 @@ object FileLogger : Logger {
         val callback = object : ComponentCallbacks2 {
             override fun onConfigurationChanged(newConfig: Configuration) = Unit
 
+            @Suppress("OVERRIDE_DEPRECATION")
             override fun onLowMemory() {
                 flushIfInitialized()
             }

@@ -1,0 +1,116 @@
+public final class com/filelogger/core/BoundedMemoryLogDestination : com/filelogger/core/LogDestination {
+	public static final field Companion Lcom/filelogger/core/BoundedMemoryLogDestination$Companion;
+	public static final field DEFAULT_CAPACITY I
+	public fun <init> ()V
+	public fun <init> (I)V
+	public synthetic fun <init> (IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun clear ()V
+	public final fun getCapacity ()I
+	public final fun snapshot ()Ljava/util/List;
+	public fun write (Lcom/filelogger/core/LogRecord;)V
+}
+
+public final class com/filelogger/core/BoundedMemoryLogDestination$Companion {
+}
+
+public final class com/filelogger/core/CompositeLogDestination : com/filelogger/core/LogDestination {
+	public fun <init> (Ljava/util/List;)V
+	public fun <init> ([Lcom/filelogger/core/LogDestination;)V
+	public fun write (Lcom/filelogger/core/LogRecord;)V
+}
+
+public final class com/filelogger/core/DefaultLogger : com/filelogger/core/Logger {
+	public fun <init> (Lcom/filelogger/core/LogDestination;Lcom/filelogger/core/LoggerConfig;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)V
+	public synthetic fun <init> (Lcom/filelogger/core/LogDestination;Lcom/filelogger/core/LoggerConfig;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun d (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public fun i (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public fun log (Lcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public fun w (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+}
+
+public abstract interface class com/filelogger/core/LogDestination {
+	public abstract fun write (Lcom/filelogger/core/LogRecord;)V
+}
+
+public final class com/filelogger/core/LogLevel : java/lang/Enum {
+	public static final field DEBUG Lcom/filelogger/core/LogLevel;
+	public static final field ERROR Lcom/filelogger/core/LogLevel;
+	public static final field INFO Lcom/filelogger/core/LogLevel;
+	public static final field WARN Lcom/filelogger/core/LogLevel;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun isAtLeast (Lcom/filelogger/core/LogLevel;)Z
+	public static fun valueOf (Ljava/lang/String;)Lcom/filelogger/core/LogLevel;
+	public static fun values ()[Lcom/filelogger/core/LogLevel;
+}
+
+public final class com/filelogger/core/LogRecord {
+	public fun <init> (JLcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public synthetic fun <init> (JLcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()Lcom/filelogger/core/LogLevel;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun copy (JLcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lcom/filelogger/core/LogRecord;
+	public static synthetic fun copy$default (Lcom/filelogger/core/LogRecord;JLcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lcom/filelogger/core/LogRecord;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributes ()Ljava/util/Map;
+	public final fun getExecutionName ()Ljava/lang/String;
+	public final fun getLevel ()Lcom/filelogger/core/LogLevel;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getProcessName ()Ljava/lang/String;
+	public final fun getTag ()Ljava/lang/String;
+	public final fun getThrowableText ()Ljava/lang/String;
+	public final fun getTimestampMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+public abstract interface class com/filelogger/core/Logger {
+	public fun d (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public static synthetic fun d$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
+	public fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public static synthetic fun e$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;ILjava/lang/Object;)V
+	public fun i (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public static synthetic fun i$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
+	public abstract fun log (Lcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public static synthetic fun log$default (Lcom/filelogger/core/Logger;Lcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;ILjava/lang/Object;)V
+	public fun w (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public static synthetic fun w$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
+}
+
+public final class com/filelogger/core/Logger$DefaultImpls {
+	public static fun d (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public static synthetic fun d$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
+	public static fun e (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;)V
+	public static synthetic fun e$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;ILjava/lang/Object;)V
+	public static fun i (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public static synthetic fun i$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
+	public static synthetic fun log$default (Lcom/filelogger/core/Logger;Lcom/filelogger/core/LogLevel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;Ljava/util/Map;ILjava/lang/Object;)V
+	public static fun w (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public static synthetic fun w$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
+}
+
+public final class com/filelogger/core/LoggerConfig {
+	public fun <init> ()V
+	public fun <init> (Lcom/filelogger/core/LogLevel;Ljava/util/Map;Ljava/util/Map;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Lcom/filelogger/core/LogLevel;Ljava/util/Map;Ljava/util/Map;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/filelogger/core/LogLevel;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Z
+	public final fun copy (Lcom/filelogger/core/LogLevel;Ljava/util/Map;Ljava/util/Map;Ljava/lang/String;Z)Lcom/filelogger/core/LoggerConfig;
+	public static synthetic fun copy$default (Lcom/filelogger/core/LoggerConfig;Lcom/filelogger/core/LogLevel;Ljava/util/Map;Ljava/util/Map;Ljava/lang/String;ZILjava/lang/Object;)Lcom/filelogger/core/LoggerConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/util/Map;
+	public final fun getMinimumLevel ()Lcom/filelogger/core/LogLevel;
+	public final fun getProcessName ()Ljava/lang/String;
+	public final fun getPropagateDestinationFailures ()Z
+	public final fun getTagMinimumLevels ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}

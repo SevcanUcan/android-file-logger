@@ -27,6 +27,7 @@ public final class com/filelogger/Breadcrumb {
 
 public abstract interface class com/filelogger/CloseableLogDestination : com/filelogger/FlushableLogDestination {
 	public abstract fun close (J)Z
+	public static synthetic fun close$default (Lcom/filelogger/CloseableLogDestination;JILjava/lang/Object;)Z
 }
 
 public final class com/filelogger/CloseableLogDestination$DefaultImpls {
@@ -47,6 +48,7 @@ public abstract interface class com/filelogger/DiagnosticLogDestination {
 
 public abstract interface class com/filelogger/ErasableLogDestination {
 	public abstract fun erasePendingData (J)Z
+	public static synthetic fun erasePendingData$default (Lcom/filelogger/ErasableLogDestination;JILjava/lang/Object;)Z
 }
 
 public final class com/filelogger/ErasableLogDestination$DefaultImpls {
@@ -116,6 +118,7 @@ public abstract interface class com/filelogger/FlushableLogDestination : com/fil
 	public static final field Companion Lcom/filelogger/FlushableLogDestination$Companion;
 	public static final field DEFAULT_FLUSH_TIMEOUT_MILLIS J
 	public abstract fun flush (J)Z
+	public static synthetic fun flush$default (Lcom/filelogger/FlushableLogDestination;JILjava/lang/Object;)Z
 }
 
 public final class com/filelogger/FlushableLogDestination$Companion {
@@ -278,6 +281,7 @@ public final class com/filelogger/LogSession {
 public abstract interface class com/filelogger/Logger {
 	public abstract fun d (Ljava/lang/String;Ljava/lang/String;)V
 	public abstract fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public static synthetic fun e$default (Lcom/filelogger/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)V
 	public abstract fun i (Ljava/lang/String;Ljava/lang/String;)V
 	public abstract fun w (Ljava/lang/String;Ljava/lang/String;)V
 }
@@ -446,5 +450,10 @@ public final class com/filelogger/SupportReportOptions {
 }
 
 public final class com/filelogger/SupportReportOptions$Companion {
+}
+
+public final class com/filelogger/kmp/FileLoggerDestination : com/filelogger/core/LogDestination {
+	public fun <init> ()V
+	public fun write (Lcom/filelogger/core/LogRecord;)V
 }
 

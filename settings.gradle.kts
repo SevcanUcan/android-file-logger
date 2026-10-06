@@ -21,6 +21,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "android-file-logger"
 include(":app")
+include(":filelogger-core")
 include(":filelogger")
 include(":filelogger-okhttp")
 include(":filelogger-remote")

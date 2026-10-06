@@ -15,7 +15,20 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v5
       - run: chmod +x gradlew
-      - run: ./gradlew test lintDebug assembleDebug assembleRelease apiCheck publishAllPublicationsToTestRepository
+      - run: ./gradlew test :filelogger-core:wasmJsNodeTest lintDebug assembleDebug assembleRelease apiCheck publishAllPublicationsToTestRepository
+
+  ios-core:
+    name: Multiplatform core (iOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v5
+      - run: chmod +x gradlew
+      - run: ./gradlew :filelogger-core:compileKotlinIosArm64 :filelogger-core:compileKotlinIosSimulatorArm64
 
   device-tests:
     name: Device tests (API ${{ matrix.api-level }})

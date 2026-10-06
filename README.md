@@ -17,6 +17,7 @@ to Timber rather than replacing an application's existing logging facade.
 
 | Module | Purpose |
 | --- | --- |
+| `filelogger-core` | Kotlin Multiplatform logging API and engine for Android, JVM, iOS, and Wasm |
 | `filelogger` | Core file, Logcat, crash, export, query, retention, and diagnostics APIs |
 | `filelogger-okhttp` | Privacy-safe OkHttp request/response logging |
 | `filelogger-remote` | Batching, gzip, retry/backoff, and persistent offline spool |
@@ -29,6 +30,7 @@ For a source checkout:
 
 ```kotlin
 dependencies {
+    implementation(project(":filelogger-core")) // common Kotlin code
     implementation(project(":filelogger"))
     implementation(project(":filelogger-okhttp")) // optional
     implementation(project(":filelogger-remote")) // optional
@@ -52,6 +54,41 @@ dependencies {
 
 `1.0.0-rc2` is the release-candidate line. Final `1.0.0` publication remains
 deferred until the candidate has completed external application validation.
+`filelogger-core` was added after the `1.0.0-rc2` tag and will be available from
+the next tagged release; use the source dependency while developing against this branch.
+
+## Kotlin Multiplatform core
+
+`filelogger-core` exposes a platform-neutral logger, structured records, tag and
+level filtering, failure-isolated composite destinations, and a thread-safe bounded
+memory destination. It publishes Gradle module metadata plus Android, JVM, iOS
+device, iOS simulator, and Wasm artifacts.
+
+```kotlin
+val recentLogs = BoundedMemoryLogDestination(capacity = 200)
+val logger = DefaultLogger(
+    destination = recentLogs,
+    config = LoggerConfig(
+        minimumLevel = LogLevel.INFO,
+        context = mapOf("build" to "1.0.0")
+    )
+)
+
+logger.i("Sync", "Upload started", mapOf("items" to "12"))
+```
+
+On Android, common Kotlin records can use the full file pipeline after the regular
+`FileLogger.install(...)` call:
+
+```kotlin
+val sharedLogger = com.filelogger.core.DefaultLogger(
+    destination = com.filelogger.kmp.FileLoggerDestination(),
+    config = com.filelogger.core.LoggerConfig(processName = "android")
+)
+```
+
+See [Multiplatform architecture](docs/MULTIPLATFORM.md) for targets, publication,
+CI coverage, and current platform limitations.
 
 ## Quick start
 
