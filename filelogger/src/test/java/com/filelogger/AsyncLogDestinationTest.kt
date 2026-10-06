@@ -6,8 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class AsyncLogDestinationTest {
 
@@ -120,6 +122,46 @@ class AsyncLogDestinationTest {
         assertTrue(destination.flush(timeoutMillis = 1_000))
         assertEquals(listOf(first, second, third), delegate.records)
         assertEquals(1L, destination.droppedRecords())
+    }
+
+    @Test
+    fun `drop oldest accounting stays exact while worker drains concurrently`() {
+        val delivered = AtomicInteger()
+        val destination = AsyncLogDestination(
+            delegate = object : LogDestination {
+                override fun write(record: LogRecord) {
+                    delivered.incrementAndGet()
+                    Thread.yield()
+                }
+            },
+            workerName = "AsyncLogDestinationTest",
+            queueCapacity = 2,
+            overflowStrategy = AsyncOverflowStrategy.DROP_OLDEST
+        )
+        val workerCount = 6
+        val recordsPerWorker = 2_000
+        val start = CountDownLatch(1)
+        val completed = CountDownLatch(workerCount)
+        val executor = Executors.newFixedThreadPool(workerCount)
+
+        repeat(workerCount) { worker ->
+            executor.execute {
+                start.await()
+                repeat(recordsPerWorker) { index ->
+                    destination.write(testRecord(message = "$worker-$index"))
+                }
+                completed.countDown()
+            }
+        }
+
+        start.countDown()
+        assertTrue(completed.await(10, TimeUnit.SECONDS))
+        executor.shutdown()
+        assertTrue(destination.flush(timeoutMillis = 5_000))
+        assertEquals(
+            (workerCount * recordsPerWorker).toLong(),
+            delivered.get().toLong() + destination.droppedRecords()
+        )
     }
 
     @Test

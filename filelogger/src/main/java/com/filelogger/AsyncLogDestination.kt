@@ -135,10 +135,8 @@ internal class AsyncLogDestination(
     }
 
     private fun removeOldestRecord(): Boolean {
-        val iterator = queue.iterator()
-        while (iterator.hasNext()) {
-            if (iterator.next() is QueueItem.Record) {
-                iterator.remove()
+        for (item in queue) {
+            if (item is QueueItem.Record && queue.removeFirstOccurrence(item)) {
                 return true
             }
         }
