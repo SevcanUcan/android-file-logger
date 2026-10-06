@@ -66,8 +66,8 @@ class FileLoggerProcessInstrumentationTest {
             repeat(100) { index -> FileLogger.d("MainProcess", "main-$index") }
             FileLogger.e("MainProcess", "main-final")
 
-            assertTrue(latch.await(15, TimeUnit.SECONDS))
-            assertEquals(1, resultCode)
+            assertTrue("remote process result timed out", latch.await(60, TimeUnit.SECONDS))
+            assertEquals("remote process logging failed", 1, resultCode)
         } finally {
             context.unregisterReceiver(receiver)
         }

@@ -24,7 +24,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [24, 28, 33, 35, 36]
+        include:
+          - api-level: 24
+            target: default
+          - api-level: 28
+            target: default
+          - api-level: 33
+            target: default
+          - api-level: 35
+            target: default
+          - api-level: 36
+            target: aosp_atd
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -37,6 +47,7 @@ jobs:
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
+          target: ${{ matrix.target }}
           arch: x86_64
           profile: pixel_2
           ram-size: 2048M
