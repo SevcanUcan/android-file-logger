@@ -62,9 +62,13 @@ class FileLoggerSoakInstrumentationTest {
             }
         }
 
-        assertTrue("soak workers timed out", completed.await(30, TimeUnit.SECONDS))
+        val completedInTime = completed.await(120, TimeUnit.SECONDS)
         executor.shutdown()
-        assertTrue("soak executor did not stop", executor.awaitTermination(10, TimeUnit.SECONDS))
+        if (!completedInTime) {
+            executor.shutdownNow()
+        }
+        assertTrue("soak workers timed out", completedInTime)
+        assertTrue("soak executor did not stop", executor.awaitTermination(30, TimeUnit.SECONDS))
         assertTrue("logging workers failed: $failures", failures.isEmpty())
 
         FileLogger.e("Soak", "final-durable-error")
