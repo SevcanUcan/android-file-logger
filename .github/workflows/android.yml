@@ -15,7 +15,14 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v5
       - run: chmod +x gradlew
-      - run: ./gradlew test :filelogger-core:wasmJsNodeTest lintDebug assembleDebug assembleRelease apiCheck publishAllPublicationsToTestRepository
+      - name: JVM tests and API checks
+        run: ./gradlew test apiCheck
+      - name: Wasm tests
+        run: ./gradlew :filelogger-core:wasmJsNodeTest
+      - name: Android lint and assemblies
+        run: ./gradlew lintDebug assembleDebug assembleRelease
+      - name: Multiplatform publication
+        run: ./gradlew publishAllPublicationsToTestRepository
 
   ios-core:
     name: Multiplatform core (iOS)
