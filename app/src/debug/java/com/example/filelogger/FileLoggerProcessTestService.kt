@@ -40,7 +40,9 @@ class FileLoggerProcessTestService : Service() {
         } else {
             repeat(100) { index -> FileLogger.d("RemoteProcess", "remote-$index") }
             FileLogger.e("RemoteProcess", "remote-final")
-            val success = FileLogger.flush() && FileLogger.shutdown()
+            val flushed = FileLogger.flush(PROCESS_TEST_TIMEOUT_MILLIS)
+            val shutdown = FileLogger.shutdown(PROCESS_TEST_TIMEOUT_MILLIS)
+            val success = flushed && shutdown
             intent?.getStringExtra(EXTRA_RESULT_ACTION)?.let { resultAction ->
                 sendBroadcast(
                     Intent(resultAction)
@@ -59,5 +61,6 @@ class FileLoggerProcessTestService : Service() {
         const val EXTRA_FOLDER = "folder"
         const val EXTRA_RESULT_ACTION = "result_action"
         const val EXTRA_RESULT_CODE = "result_code"
+        private const val PROCESS_TEST_TIMEOUT_MILLIS = 60_000L
     }
 }
