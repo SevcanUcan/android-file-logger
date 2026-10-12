@@ -2,8 +2,11 @@
 
 Production-oriented Android file logging with bounded async writes, durable flush,
 hybrid retention, structured context, write-time redaction, user-controlled collection,
-crash capture, support exports, diagnostics, and optional OkHttp, remote-upload, and
-Compose viewer modules.
+crash capture, support exports, diagnostics, and optional OkHttp, remote-upload,
+Crashlytics, OpenTelemetry, and Compose viewer modules.
+
+Türkçe ve başlangıç seviyesinde entegrasyon anlatımı için
+[Sıfırdan Kurulum ve Kullanım Rehberi](docs/KULLANIM_REHBERI_TR.md) belgesine bakın.
 
 ## Why not only Logcat or Timber?
 
@@ -21,6 +24,8 @@ to Timber rather than replacing an application's existing logging facade.
 | `filelogger` | Core file, Logcat, crash, export, query, retention, and diagnostics APIs |
 | `filelogger-okhttp` | Privacy-safe OkHttp request/response logging |
 | `filelogger-remote` | Batching, gzip, retry/backoff, and persistent offline spool |
+| `filelogger-crashlytics` | Bounded custom logs and non-fatal reports for Firebase Crashlytics |
+| `filelogger-otel` | Structured OpenTelemetry logs with trace-context correlation support |
 | `filelogger-ui` | Compose viewer with search and level filters |
 | `app` | Interactive sample and device reliability tests |
 
@@ -34,6 +39,8 @@ dependencies {
     implementation(project(":filelogger"))
     implementation(project(":filelogger-okhttp")) // optional
     implementation(project(":filelogger-remote")) // optional
+    implementation(project(":filelogger-crashlytics")) // optional
+    implementation(project(":filelogger-otel"))        // optional
     implementation(project(":filelogger-ui"))     // optional
 }
 ```
@@ -45,17 +52,24 @@ use the repository owner and tag:
 repositories { maven("https://jitpack.io") }
 
 dependencies {
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-core:1.0.0-rc3") // KMP common code
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc3")
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc3") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc3") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc3")     // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-core:1.0.0-rc4") // KMP common code
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4")
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc4") // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc4") // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-crashlytics:1.0.0-rc4") // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-otel:1.0.0-rc4")         // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc4")     // optional
 }
 ```
 
-`1.0.0-rc3` is the release-candidate line and includes the Kotlin Multiplatform
-core. Final `1.0.0` publication remains deferred until the candidate has completed
-external application validation.
+These are library modules, not separate applications. Gradle packages only the
+selected modules into the host application's single APK or AAB. Do not add every
+module unless the application uses it.
+
+`1.0.0-rc4` is the release-candidate line and includes the Kotlin Multiplatform
+core, Crashlytics destination, and OpenTelemetry destination. Final `1.0.0`
+publication remains deferred until the candidate has completed external application
+validation.
 
 ## Kotlin Multiplatform core
 
@@ -297,6 +311,56 @@ FileLogger.init(
 
 Batches are committed to disk before upload, gzip-compressed by default, retried
 with exponential backoff, and retained for the next process when offline.
+
+## Crashlytics destination
+
+Complete the normal Firebase/Crashlytics setup in the host application, then attach
+the optional destination. The adapter sends bounded `WARN` and `ERROR` records by
+default. Redacted throwable text is reported as a non-fatal exception.
+
+```kotlin
+val crashlytics = CrashlyticsLogDestination(
+    config = CrashlyticsLogConfig(
+        minimumLogLevel = LogLevel.WARN,
+        recordNonFatalExceptions = true
+    )
+)
+
+FileLogger.install(
+    this,
+    LoggerConfig.prod().copy(customDestinations = listOf(crashlytics))
+)
+```
+
+## OpenTelemetry destination
+
+The host application owns the OpenTelemetry SDK, OTLP exporter, authentication,
+endpoint, and sampling policy. FileLogger only emits structured records through the
+configured `OpenTelemetry` instance, so the same adapter works with a vendor or a
+self-hosted Collector.
+
+OpenTelemetry Java requires Android applications to enable core library desugaring.
+Follow the current [Android desugaring setup](https://developer.android.com/studio/write/java8-support)
+in the consuming app module.
+
+```kotlin
+val otel = OpenTelemetryLogDestination(
+    openTelemetry = openTelemetrySdk,
+    config = OpenTelemetryLogConfig(
+        minimumLogLevel = LogLevel.INFO,
+        instrumentationVersion = BuildConfig.VERSION_NAME
+    )
+)
+
+FileLogger.install(
+    this,
+    LoggerConfig.prod().copy(customDestinations = listOf(otel))
+)
+```
+
+Destinations can be combined. For example, an enterprise application can keep local
+files, report errors to Crashlytics, and send structured logs to OpenTelemetry in the
+same APK. Never place SMTP credentials or remote service secrets in the mobile app.
 
 ## Compose viewer
 

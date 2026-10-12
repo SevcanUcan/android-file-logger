@@ -1,0 +1,28 @@
+public final class com/filelogger/otel/OpenTelemetryLogConfig {
+	public fun <init> ()V
+	public fun <init> (Lcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;)V
+	public synthetic fun <init> (Lcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/filelogger/LogLevel;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Lcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;)Lcom/filelogger/otel/OpenTelemetryLogConfig;
+	public static synthetic fun copy$default (Lcom/filelogger/otel/OpenTelemetryLogConfig;Lcom/filelogger/LogLevel;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;ILjava/lang/Object;)Lcom/filelogger/otel/OpenTelemetryLogConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributePrefix ()Ljava/lang/String;
+	public final fun getInstrumentationName ()Ljava/lang/String;
+	public final fun getInstrumentationVersion ()Ljava/lang/String;
+	public final fun getMaxAttributes ()I
+	public final fun getMaxMessageLength ()I
+	public final fun getMinimumLogLevel ()Lcom/filelogger/LogLevel;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/filelogger/otel/OpenTelemetryLogDestination : com/filelogger/LogDestination {
+	public fun <init> (Lio/opentelemetry/api/OpenTelemetry;Lcom/filelogger/otel/OpenTelemetryLogConfig;)V
+	public synthetic fun <init> (Lio/opentelemetry/api/OpenTelemetry;Lcom/filelogger/otel/OpenTelemetryLogConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun write (Lcom/filelogger/LogRecord;)V
+}

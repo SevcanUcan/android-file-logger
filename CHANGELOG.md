@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The project follows Semantic Versioning. Release candidates may change before the
 final `1.0.0` API baseline is declared stable.
 
+## [1.0.0-rc4] - 2026-10-12
+
+### Added
+
+- Added an optional Firebase Crashlytics destination with level filtering,
+  bounded metadata, and redacted non-fatal reporting.
+- Added an optional OpenTelemetry logs destination with severity mapping,
+  bounded attributes, and compatibility with application-owned OTLP pipelines.
+- Documented that optional destinations are library modules packaged into the
+  host application's single APK or AAB, not separate applications.
+
 ## [1.0.0-rc3] - 2026-10-12
 
 ### Added

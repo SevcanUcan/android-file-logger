@@ -33,7 +33,7 @@ The library now has a small but production-oriented core:
 - stored-log query by level, tag, keyword, timestamp, and session
 - write/flush/rotation and level-count metrics
 - fault-injectable file operations
-- optional OkHttp, remote delivery, and Compose viewer modules
+- optional OkHttp, remote delivery, Crashlytics, OpenTelemetry, and Compose viewer modules
 
 ## Public API
 
