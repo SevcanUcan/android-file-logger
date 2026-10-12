@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The project follows Semantic Versioning. Release candidates may change before the
 final `1.0.0` API baseline is declared stable.
 
+## [1.0.0-rc3] - 2026-10-12
+
+### Added
+
+- Added the `filelogger-core` Kotlin Multiplatform API and engine for Android,
+  JVM, iOS device/simulator, and Wasm/JS targets.
+- Added an Android bridge so shared Kotlin log records can use the existing
+  FileLogger disk, retention, export, and diagnostics pipeline.
+- Added bounded, thread-safe in-memory logging for shared code.
+
+### Changed
+
+- Split JVM, Android API, Wasm, iOS compilation, and publication checks into
+  explicit CI verification gates.
+- Stabilized Compose API validation by excluding compiler-generated singleton
+  classes from the public API baseline.
+
 ## [1.0.0-rc2] - 2026-10-01
 
 ### Fixed

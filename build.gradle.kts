@@ -10,6 +10,7 @@ plugins {
 
 apiValidation {
     ignoredProjects.add("app")
+    ignoredClasses.add("com.filelogger.ui.ComposableSingletons\$FileLoggerViewerKt")
 }
 
 rootProject.plugins.withType<org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin> {

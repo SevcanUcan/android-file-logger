@@ -45,17 +45,17 @@ use the repository owner and tag:
 repositories { maven("https://jitpack.io") }
 
 dependencies {
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc2")
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc2") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc2") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc2")     // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-core:1.0.0-rc3") // KMP common code
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc3")
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc3") // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc3") // optional
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc3")     // optional
 }
 ```
 
-`1.0.0-rc2` is the release-candidate line. Final `1.0.0` publication remains
-deferred until the candidate has completed external application validation.
-`filelogger-core` was added after the `1.0.0-rc2` tag and will be available from
-the next tagged release; use the source dependency while developing against this branch.
+`1.0.0-rc3` is the release-candidate line and includes the Kotlin Multiplatform
+core. Final `1.0.0` publication remains deferred until the candidate has completed
+external application validation.
 
 ## Kotlin Multiplatform core
 

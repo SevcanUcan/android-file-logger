@@ -69,6 +69,7 @@ public final class com/filelogger/core/LogRecord {
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
+
 public abstract interface class com/filelogger/core/Logger {
 	public fun d (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
 	public static synthetic fun d$default (Lcom/filelogger/core/Logger;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
@@ -114,3 +115,4 @@ public final class com/filelogger/core/LoggerConfig {
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
+
