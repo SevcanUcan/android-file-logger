@@ -34,7 +34,10 @@ tasks.register("verifyMavenLocalPublications") {
     doLast {
         val publicationVersion = providers.gradleProperty("VERSION_NAME").get()
         val groupPath = project.group.toString().replace('.', File.separatorChar)
-        val repositoryRoot = File(System.getProperty("user.home"), ".m2/repository/$groupPath")
+        val localRepository = System.getProperty("maven.repo.local")
+            ?.let(::File)
+            ?: File(System.getProperty("user.home"), ".m2/repository")
+        val repositoryRoot = File(localRepository, groupPath)
         val requireSignatures = providers.gradleProperty("verifySignatures").orNull == "true"
         val primaryModules = mapOf(
             "filelogger" to "aar",
