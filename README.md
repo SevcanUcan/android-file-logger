@@ -45,20 +45,23 @@ dependencies {
 }
 ```
 
-The project publishes Maven-compatible AARs and source JARs. JitPack coordinates
-use the repository owner and tag:
+Maven Central is the primary distribution channel. Android projects normally
+already have `mavenCentral()` in `dependencyResolutionManagement.repositories`:
 
 ```kotlin
-repositories { maven("https://jitpack.io") }
+repositories {
+    google()
+    mavenCentral()
+}
 
 dependencies {
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-core:1.0.0-rc4") // KMP common code
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4")
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc4") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc4") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-crashlytics:1.0.0-rc4") // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-otel:1.0.0-rc4")         // optional
-    implementation("com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc4")     // optional
+    implementation("io.github.sevcanucan:filelogger-core:1.0.0-rc5") // KMP common code
+    implementation("io.github.sevcanucan:filelogger:1.0.0-rc5")
+    implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc5") // optional
+    implementation("io.github.sevcanucan:filelogger-remote:1.0.0-rc5") // optional
+    implementation("io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc5") // optional
+    implementation("io.github.sevcanucan:filelogger-otel:1.0.0-rc5")         // optional
+    implementation("io.github.sevcanucan:filelogger-ui:1.0.0-rc5")     // optional
 }
 ```
 
@@ -66,10 +69,23 @@ These are library modules, not separate applications. Gradle packages only the
 selected modules into the host application's single APK or AAB. Do not add every
 module unless the application uses it.
 
-`1.0.0-rc4` is the release-candidate line and includes the Kotlin Multiplatform
+`1.0.0-rc5` is the first Maven Central release candidate and includes the Kotlin Multiplatform
 core, Crashlytics destination, and OpenTelemetry destination. Final `1.0.0`
 publication remains deferred until the candidate has completed external application
-validation.
+validation. The coordinates become resolvable after the first Central Portal deployment
+is approved and published.
+
+JitPack remains available as an alternative for existing users:
+
+```kotlin
+repositories { maven("https://jitpack.io") }
+
+dependencies {
+    implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4")
+}
+```
+
+Maintainers can follow the [Maven Central release guide](docs/MAVEN_CENTRAL_RELEASE.md).
 
 ## Kotlin Multiplatform core
 

@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    `maven-publish`
+    alias(libs.plugins.vanniktech.maven.publish)
 }
 
 android {
@@ -30,30 +30,44 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    publishing {
-        singleVariant("release") { withSourcesJar() }
-    }
 }
 
 kotlin {
     compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            create<MavenPublication>("release") {
-                from(components["release"])
-                artifactId = "filelogger"
-                pom {
-                    name.set("Android FileLogger Core")
-                    description.set("Reliable structured file logging for Android")
-                    url.set("https://github.com/SevcanUcan/android-file-logger")
-                    licenses { license { name.set("MIT License"); url.set("https://opensource.org/licenses/MIT") } }
-                }
+mavenPublishing {
+    publishToMavenCentral()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
+    pom {
+        name.set("Android FileLogger")
+        description.set("Reliable structured file logging for Android")
+        url.set("https://github.com/SevcanUcan/android-file-logger")
+        licenses {
+            license {
+                name.set("MIT License")
+                url.set("https://opensource.org/licenses/MIT")
+                distribution.set("repo")
             }
         }
-        repositories { maven { name = "test"; url = rootProject.layout.buildDirectory.dir("maven-repo").get().asFile.toURI() } }
+        developers {
+            developer {
+                id.set("SevcanUcan")
+                name.set("Sevcan Ucan")
+                url.set("https://github.com/SevcanUcan")
+            }
+        }
+        scm {
+            connection.set("scm:git:git://github.com/SevcanUcan/android-file-logger.git")
+            developerConnection.set("scm:git:ssh://git@github.com/SevcanUcan/android-file-logger.git")
+            url.set("https://github.com/SevcanUcan/android-file-logger")
+        }
+        issueManagement {
+            system.set("GitHub")
+            url.set("https://github.com/SevcanUcan/android-file-logger/issues")
+        }
     }
 }
 

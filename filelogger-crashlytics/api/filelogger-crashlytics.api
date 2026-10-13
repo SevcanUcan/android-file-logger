@@ -24,3 +24,4 @@ public final class com/filelogger/crashlytics/CrashlyticsLogDestination : com/fi
 	public synthetic fun <init> (Lcom/google/firebase/crashlytics/FirebaseCrashlytics;Lcom/filelogger/crashlytics/CrashlyticsLogConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun write (Lcom/filelogger/LogRecord;)V
 }
+

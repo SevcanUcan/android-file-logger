@@ -51,7 +51,7 @@ Kullanmadığınız modülü eklemezsiniz. Böylece gereksiz SDK ve kod uygulama
 Kütüphanenin mevcut sürümü:
 
 ```text
-1.0.0-rc4
+1.0.0-rc5
 ```
 
 `rc`, release candidate anlamına gelir. Kütüphane kapsamlı testlerden geçmiştir
@@ -59,14 +59,14 @@ fakat final `1.0.0` etiketi henüz verilmemiştir.
 
 > **Yayın durumu:** `filelogger`, `filelogger-core`, `filelogger-okhttp`,
 > `filelogger-remote`, `filelogger-crashlytics`, `filelogger-otel` ve
-> `filelogger-ui` modülleri `1.0.0-rc4` sürümünün parçalarıdır.
+> `filelogger-ui` modülleri `1.0.0-rc5` sürümünün parçalarıdır.
 
-## 3. JitPack Deposunu Ekleyin
+## 3. Maven Central Deposunu Kontrol Edin
 
 Android Studio'da proje kökündeki `settings.gradle.kts` dosyasını açın.
 
-`dependencyResolutionManagement` bölümündeki `repositories` listesine
-`maven("https://jitpack.io")` satırını ekleyin:
+`dependencyResolutionManagement` bölümündeki `repositories` listesinde
+`google()` ve `mavenCentral()` bulunduğunu kontrol edin:
 
 ```kotlin
 dependencyResolutionManagement {
@@ -75,7 +75,6 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://jitpack.io")
     }
 }
 ```
@@ -89,12 +88,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://jitpack.io' }
     }
 }
 ```
 
-Bu işlem Gradle'a "FileLogger paketini JitPack üzerinden de arayabilirsin" der.
+Bu işlem Gradle'a FileLogger paketini Maven Central üzerinden aramasını söyler.
+Ek bir özel repository adresi gerekmez.
 
 ## 4. Kütüphaneyi Uygulama Modülüne Ekleyin
 
@@ -109,7 +108,7 @@ app/build.gradle.kts
 ```kotlin
 dependencies {
     implementation(
-        "com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4"
+        "io.github.sevcanucan:filelogger:1.0.0-rc5"
     )
 }
 ```
@@ -118,7 +117,7 @@ Groovy karşılığı:
 
 ```groovy
 dependencies {
-    implementation 'com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4'
+    implementation 'io.github.sevcanucan:filelogger:1.0.0-rc5'
 }
 ```
 
@@ -128,37 +127,54 @@ zorunlu değildir:
 ```kotlin
 // OkHttp istek ve cevaplarını loglamak için:
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-okhttp:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-okhttp:1.0.0-rc5"
 )
 
 // Logları kendi HTTPS sunucunuza göndermek için:
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-remote:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-remote:1.0.0-rc5"
 )
 
 // Firebase Crashlytics'e WARN/ERROR göndermek için:
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-crashlytics:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc5"
 )
 
 // OpenTelemetry pipeline'ına structured log göndermek için:
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-otel:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-otel:1.0.0-rc5"
 )
 
 // Compose içinde log görüntüleme ekranı için:
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-ui:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-ui:1.0.0-rc5"
 )
 
 // Android/JVM/iOS/Wasm ortak kodundan loglama için:
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-core:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-core:1.0.0-rc5"
 )
 ```
 
 Dosyayı düzenledikten sonra Android Studio'nun üst kısmındaki **Sync Now**
 bağlantısına basın. Senkronizasyon bitmeden diğer adımlara geçmeyin.
+
+### JitPack alternatifi
+
+Eski kurulumunu hemen değiştiremeyen projeler için JitPack desteği korunur:
+
+```kotlin
+repositories { maven("https://jitpack.io") }
+
+dependencies {
+    implementation(
+        "com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4"
+    )
+}
+```
+
+Yeni entegrasyonlarda üstteki `io.github.sevcanucan` Maven Central koordinatını
+kullanın. Aynı modülün Maven Central ve JitPack bağımlılıklarını birlikte eklemeyin.
 
 ## 5. Application Sınıfını Oluşturun
 
@@ -579,7 +595,7 @@ Modülü ekleyin:
 
 ```kotlin
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-crashlytics:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc5"
 )
 ```
 
@@ -621,7 +637,7 @@ Modülü ekleyin:
 
 ```kotlin
 implementation(
-    "com.github.SevcanUcan.android-file-logger:filelogger-otel:1.0.0-rc4"
+    "io.github.sevcanucan:filelogger-otel:1.0.0-rc5"
 )
 ```
 
@@ -771,9 +787,9 @@ kullanılır.
 
 Kontrol edin:
 
-- `settings.gradle.kts` içinde JitPack var mı?
+- `settings.gradle.kts` içinde `google()` ve `mavenCentral()` var mı?
 - İnternet bağlantısı çalışıyor mu?
-- Sürüm tam olarak `1.0.0-rc4` mü?
+- Sürüm tam olarak `1.0.0-rc5` mü?
 - Gradle Offline Mode kapalı mı?
 - **Sync Project with Gradle Files** çalıştırıldı mı?
 
@@ -829,7 +845,7 @@ Ani güç kaybı, native crash, force-stop ve işletim sistemi tarafından anlı
 
 ## 21. Yayın Öncesi Kontrol Listesi
 
-- [ ] JitPack repository eklendi.
+- [ ] `google()` ve `mavenCentral()` repository'leri tanımlı.
 - [ ] `filelogger` bağımlılığı eklendi.
 - [ ] Gradle Sync başarılı.
 - [ ] `Application` içinde FileLogger kuruldu.
@@ -852,8 +868,8 @@ Ani güç kaybı, native crash, force-stop ve işletim sistemi tarafından anlı
 
 Bir kullanıcı yalnızca şunları yaparak başlayabilir:
 
-1. JitPack'i `settings.gradle.kts` dosyasına ekler.
-2. `filelogger:1.0.0-rc4` bağımlılığını ekler.
+1. `settings.gradle.kts` içinde `mavenCentral()` bulunduğunu kontrol eder.
+2. `filelogger:1.0.0-rc5` bağımlılığını ekler.
 3. `Application.onCreate()` içinde `FileLogger.install(...)` çağırır.
 4. İstediği yerde `FileLogger.e(...)` kullanır.
 5. ZIP paylaşmak için FileProvider tanımlar.

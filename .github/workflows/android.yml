@@ -24,7 +24,7 @@ jobs:
       - name: Android lint and assemblies
         run: ./gradlew lintDebug assembleDebug assembleRelease
       - name: Multiplatform publication
-        run: ./gradlew publishAllPublicationsToTestRepository
+        run: ./gradlew publishToMavenLocal verifyMavenLocalPublications
 
   ios-core:
     name: Multiplatform core (iOS)

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The project follows Semantic Versioning. Release candidates may change before the
 final `1.0.0` API baseline is declared stable.
 
+## Unreleased
+
+### Changed
+
+- Prepared `1.0.0-rc5` as the first Maven Central release candidate under the
+  verified `io.github.sevcanucan` namespace.
+- Added signed Central Portal publications, complete POM metadata, sources and
+  javadoc artifacts, local publication verification, and a protected manual
+  GitHub Actions release workflow.
+- Kept the existing JitPack coordinates compatible through its build environment.
+
 ## [1.0.0-rc4] - 2026-10-12
 
 ### Added
