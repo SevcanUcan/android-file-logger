@@ -45,13 +45,17 @@ tasks.register("verifyMavenLocalPublications") {
             "filelogger-otel" to "aar",
             "filelogger-ui" to "aar"
         )
-        val platformModules = mapOf(
+        val portablePlatformModules = mapOf(
             "filelogger-core-android" to "aar",
             "filelogger-core-jvm" to "jar",
-            "filelogger-core-iosarm64" to "klib",
-            "filelogger-core-iossimulatorarm64" to "klib",
             "filelogger-core-wasm-js" to "klib"
         )
+        val applePlatformModules = mapOf(
+            "filelogger-core-iosarm64" to "klib",
+            "filelogger-core-iossimulatorarm64" to "klib"
+        )
+        val supportsApplePublications = !System.getProperty("os.name").contains("Linux", ignoreCase = true)
+        val platformModules = portablePlatformModules + if (supportsApplePublications) applePlatformModules else emptyMap()
         val modules = primaryModules + platformModules
         val expectedProjectDependencies = mapOf(
             "filelogger" to "filelogger-core",

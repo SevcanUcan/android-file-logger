@@ -12,6 +12,7 @@ coordinates shown in the main README.
 - Signing: Gradle Signing Plugin with an ASCII-armored in-memory OpenPGP key
 - Release control: manual GitHub Actions dispatch from a version tag
 - Final release: manual approval in Central Portal after upload validation
+- Release host: macOS, so Android, JVM, iOS, and Wasm variants are uploaded together
 
 Version `0.35.0` of the publishing plugin is intentional. It supports this
 project's Gradle 8.13, Android Gradle Plugin 8.11.2, and Kotlin 2.2.20 toolchain.
@@ -70,10 +71,13 @@ These checks do not contact or publish to Maven Central and do not need credenti
 .\gradlew.bat verifyMavenLocalPublications
 ```
 
-The last task checks all seven primary coordinates and five generated KMP platform
-coordinates in the local Maven repository. For every module it validates the binary,
-POM, Gradle module metadata, sources JAR, javadoc JAR, and mandatory POM fields. It
-also validates internal project dependency coordinates for the primary modules.
+The last task checks all seven primary coordinates and the KMP platform coordinates
+supported by the current host. Windows/macOS checks all five generated variants;
+Linux checks Android, JVM, and Wasm because Apple publications are disabled there.
+For every module it validates the binary, POM, Gradle module metadata, sources JAR,
+javadoc JAR, and mandatory POM fields. It also validates internal project dependency
+coordinates for the primary modules. The release workflow runs on macOS and therefore
+requires all five platform variants before uploading to Central Portal.
 
 For a private local signing test, expose the same Gradle properties only in the
 current process or in the user-level Gradle configuration outside this repository:

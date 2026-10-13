@@ -9,7 +9,9 @@ permissions:
 jobs:
   publish:
     if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    # Apple KMP publications require a macOS host. This also publishes Android,
+    # JVM, and Wasm artifacts in the same Central Portal deployment.
+    runs-on: macos-latest
     environment: maven-central
     timeout-minutes: 60
     env:
