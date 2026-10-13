@@ -51,7 +51,9 @@ jobs:
         run: ./gradlew test apiCheck :filelogger-core:wasmJsNodeTest lintDebug assembleRelease --no-daemon
 
       - name: Verify signed local publications
-        run: ./gradlew publishToMavenLocal verifyMavenLocalPublications -PverifySignatures=true --no-daemon
+        run: |
+          ./gradlew publishToMavenLocal -PverifySignatures=true --no-daemon
+          ./gradlew verifyMavenLocalPublications -PverifySignatures=true --no-daemon
 
       - name: Upload deployment to Central Portal
         run: ./gradlew publishToMavenCentral --no-daemon --stacktrace

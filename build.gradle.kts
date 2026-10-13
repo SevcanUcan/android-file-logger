@@ -30,6 +30,15 @@ allprojects {
 tasks.register("verifyMavenLocalPublications") {
     group = "verification"
     description = "Validates Maven Central artifacts in the local Maven repository."
+    mustRunAfter(
+        ":filelogger:publishToMavenLocal",
+        ":filelogger-core:publishToMavenLocal",
+        ":filelogger-okhttp:publishToMavenLocal",
+        ":filelogger-remote:publishToMavenLocal",
+        ":filelogger-crashlytics:publishToMavenLocal",
+        ":filelogger-otel:publishToMavenLocal",
+        ":filelogger-ui:publishToMavenLocal"
+    )
 
     doLast {
         val publicationVersion = providers.gradleProperty("VERSION_NAME").get()

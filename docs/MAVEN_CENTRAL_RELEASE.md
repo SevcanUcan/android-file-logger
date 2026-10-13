@@ -91,7 +91,8 @@ ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
 Then run:
 
 ```powershell
-.\gradlew.bat publishToMavenLocal verifyMavenLocalPublications -PverifySignatures=true
+.\gradlew.bat publishToMavenLocal -PverifySignatures=true
+.\gradlew.bat verifyMavenLocalPublications -PverifySignatures=true
 ```
 
 Never put credentials in this repository's `gradle.properties`.
