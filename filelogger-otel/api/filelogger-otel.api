@@ -26,3 +26,4 @@ public final class com/filelogger/otel/OpenTelemetryLogDestination : com/filelog
 	public synthetic fun <init> (Lio/opentelemetry/api/OpenTelemetry;Lcom/filelogger/otel/OpenTelemetryLogConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun write (Lcom/filelogger/LogRecord;)V
 }
+

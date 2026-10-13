@@ -1,0 +1,59 @@
+name: Publish Maven Central
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.ref_type == 'tag'
+    # Apple KMP publications require a macOS host. This also publishes Android,
+    # JVM, and Wasm artifacts in the same Central Portal deployment.
+    runs-on: macos-latest
+    environment: maven-central
+    timeout-minutes: 60
+    env:
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - run: chmod +x gradlew
+
+      - name: Validate release tag and secrets
+        shell: bash
+        run: |
+          VERSION="$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2)"
+          test "$GITHUB_REF_NAME" = "$VERSION"
+          test -n "$ORG_GRADLE_PROJECT_mavenCentralUsername"
+          test -n "$ORG_GRADLE_PROJECT_mavenCentralPassword"
+          test -n "$ORG_GRADLE_PROJECT_signingInMemoryKey"
+          test -n "$ORG_GRADLE_PROJECT_signingInMemoryKeyId"
+          test -n "$ORG_GRADLE_PROJECT_signingInMemoryKeyPassword"
+
+      - name: Test, API check, lint, and assemble
+        run: ./gradlew test apiCheck :filelogger-core:wasmJsNodeTest lintDebug assembleRelease --no-daemon
+
+      - name: Verify signed local publications
+        run: |
+          ./gradlew publishToMavenLocal -PverifySignatures=true --no-daemon
+          ./gradlew verifyMavenLocalPublications -PverifySignatures=true --no-daemon
+
+      - name: Upload deployment to Central Portal
+        run: ./gradlew publishToMavenCentral --no-daemon --stacktrace

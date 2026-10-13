@@ -14,3 +14,10 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Publishing credentials and exported signing keys must stay outside the repository.
+.env
+*.asc
+*.gpg
+*.pgp
+secring.gpg

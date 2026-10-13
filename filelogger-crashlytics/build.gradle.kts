@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    `maven-publish`
+    alias(libs.plugins.vanniktech.maven.publish)
 }
 
 android {
@@ -19,27 +19,31 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    publishing { singleVariant("release") { withSourcesJar() } }
 }
 
 kotlin {
     compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
 }
 
-afterEvaluate {
-    publishing {
-        publications {
-            create<MavenPublication>("release") {
-                from(components["release"])
-                artifactId = "filelogger-crashlytics"
-                pom {
-                    name.set("Android FileLogger Crashlytics")
-                    description.set("Optional Firebase Crashlytics destination for Android FileLogger")
-                    url.set("https://github.com/SevcanUcan/android-file-logger")
-                }
-            }
+mavenPublishing {
+    publishToMavenCentral()
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
+    pom {
+        name.set("Android FileLogger Crashlytics")
+        description.set("Optional Firebase Crashlytics destination for Android FileLogger")
+        url.set("https://github.com/SevcanUcan/android-file-logger")
+        licenses { license { name.set("MIT License"); url.set("https://opensource.org/licenses/MIT"); distribution.set("repo") } }
+        developers {
+            developer { id.set("SevcanUcan"); name.set("Sevcan Ucan"); url.set("https://github.com/SevcanUcan") }
         }
-        repositories { maven { name = "test"; url = rootProject.layout.buildDirectory.dir("maven-repo").get().asFile.toURI() } }
+        scm {
+            connection.set("scm:git:git://github.com/SevcanUcan/android-file-logger.git")
+            developerConnection.set("scm:git:ssh://git@github.com/SevcanUcan/android-file-logger.git")
+            url.set("https://github.com/SevcanUcan/android-file-logger")
+        }
+        issueManagement { system.set("GitHub"); url.set("https://github.com/SevcanUcan/android-file-logger/issues") }
     }
 }
 

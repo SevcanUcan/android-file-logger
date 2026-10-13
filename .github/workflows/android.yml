@@ -23,11 +23,8 @@ jobs:
         run: ./gradlew :filelogger-core:wasmJsNodeTest
       - name: Android lint and assemblies
         run: ./gradlew lintDebug assembleDebug assembleRelease
-      - name: Multiplatform publication
-        run: ./gradlew publishAllPublicationsToTestRepository
-
   ios-core:
-    name: Multiplatform core (iOS)
+    name: Multiplatform core and publication (iOS)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -38,6 +35,30 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - run: chmod +x gradlew
       - run: ./gradlew :filelogger-core:compileKotlinIosArm64 :filelogger-core:compileKotlinIosSimulatorArm64
+      - name: Build local publication
+        id: local-publication
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew publishToMavenLocal --stacktrace 2>&1 | tee publication-build.log
+      - name: Report publication build failure
+        if: failure() && steps.local-publication.outcome == 'failure'
+        shell: bash
+        run: |
+          reason=$(awk '/\* What went wrong:/{getline; print; exit}' publication-build.log)
+          echo "::error title=Local publication failed::${reason:-See the publication build log}"
+      - name: Verify local publication
+        id: local-publication-verification
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew verifyMavenLocalPublications --stacktrace 2>&1 | tee publication-verification.log
+      - name: Report publication verification failure
+        if: failure() && steps.local-publication-verification.outcome == 'failure'
+        shell: bash
+        run: |
+          reason=$(awk '/\* What went wrong:/{getline; print; exit}' publication-verification.log)
+          echo "::error title=Local publication verification failed::${reason:-See the publication verification log}"
 
   device-tests:
     name: Device tests (API ${{ matrix.api-level }})
