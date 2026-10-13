@@ -23,11 +23,8 @@ jobs:
         run: ./gradlew :filelogger-core:wasmJsNodeTest
       - name: Android lint and assemblies
         run: ./gradlew lintDebug assembleDebug assembleRelease
-      - name: Multiplatform publication
-        run: ./gradlew publishToMavenLocal verifyMavenLocalPublications
-
   ios-core:
-    name: Multiplatform core (iOS)
+    name: Multiplatform core and publication (iOS)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -38,6 +35,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - run: chmod +x gradlew
       - run: ./gradlew :filelogger-core:compileKotlinIosArm64 :filelogger-core:compileKotlinIosSimulatorArm64
+      - name: Multiplatform publication
+        run: ./gradlew publishToMavenLocal verifyMavenLocalPublications
 
   device-tests:
     name: Device tests (API ${{ matrix.api-level }})
