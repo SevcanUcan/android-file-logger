@@ -38,6 +38,24 @@ jobs:
           test -n "$ORG_GRADLE_PROJECT_signingInMemoryKeyId"
           test -n "$ORG_GRADLE_PROJECT_signingInMemoryKeyPassword"
 
+      - name: Validate GPG private key
+        shell: bash
+        env:
+          GNUPGHOME: ${{ runner.temp }}/diagnose-gnupg
+        run: |
+          mkdir -m 700 -p "$GNUPGHOME"
+
+          printf '%s\n' "$ORG_GRADLE_PROJECT_signingInMemoryKey" |
+            gpg --batch --quiet --import
+
+          if gpg --batch --list-secret-keys --with-colons 7EB5A7EC |
+            grep -q '^sec:'; then
+            echo "Private signing key imported successfully"
+          else
+            echo "::error::Expected private signing key was not found"
+            exit 1
+          fi
+
       - name: Diagnose GPG signing
         run: |
           chmod +x gradlew
