@@ -52,7 +52,7 @@ jobs:
 
       - name: Verify signed local publications
         run: |
-          ./gradlew publishToMavenLocal -PverifySignatures=true --no-daemon
+          ./gradlew publishToMavenLocal -PverifySignatures=true --no-daemon --stacktrace
           ./gradlew verifyMavenLocalPublications -PverifySignatures=true --no-daemon
 
       - name: Upload deployment to Central Portal
