@@ -6,7 +6,7 @@ coordinates shown in the main README.
 ## Publication architecture
 
 - Group: `io.github.sevcanucan`
-- Candidate version: `1.0.0-rc5`
+- Candidate version: `1.0.0-rc6`
 - Portal: Sonatype Central Portal
 - Gradle integration: `com.vanniktech.maven.publish` version `0.35.0`
 - Signing: Gradle Signing Plugin with an ASCII-armored in-memory OpenPGP key
@@ -99,12 +99,12 @@ Never put credentials in this repository's `gradle.properties`.
 
 ## First release procedure
 
-1. Confirm that `VERSION_NAME` is `1.0.0-rc5` and the changelog is ready.
+1. Confirm that `VERSION_NAME` is `1.0.0-rc6` and the changelog is ready.
 2. Run the complete local verification commands above.
 3. Merge the reviewed publishing branch into `main`.
-4. Create and push the exact tag `1.0.0-rc5` from the reviewed main commit.
+4. Create and push the exact tag `1.0.0-rc6` from the reviewed main commit.
 5. In GitHub Actions, open **Publish Maven Central**.
-6. Select the `1.0.0-rc5` tag and run the workflow manually.
+6. Select the `1.0.0-rc6` tag and run the workflow manually.
 7. Approve the protected `maven-central` environment deployment.
 8. Wait for tests, signed local verification, and Central Portal upload to pass.
 9. Open Central Portal and inspect the deployment validation results.
@@ -134,8 +134,8 @@ Finally, use a clean sample project with only `google()` and `mavenCentral()` an
 resolve these dependencies:
 
 ```kotlin
-implementation("io.github.sevcanucan:filelogger:1.0.0-rc5")
-implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc5")
+implementation("io.github.sevcanucan:filelogger:1.0.0-rc6")
+implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc6")
 ```
 
 Build a release variant to confirm transitive dependency resolution and consumer
