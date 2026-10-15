@@ -7,14 +7,17 @@ final `1.0.0` API baseline is declared stable.
 
 ## Unreleased
 
+## [1.0.0-rc6] - 2026-10-15
+
 ### Changed
 
-- Prepared `1.0.0-rc5` as the first Maven Central release candidate under the
-  verified `io.github.sevcanucan` namespace.
-- Added signed Central Portal publications, complete POM metadata, sources and
-  javadoc artifacts, local publication verification, and a protected manual
-  GitHub Actions release workflow.
-- Kept the existing JitPack coordinates compatible through its build environment.
+- Prepared the Maven Central release candidate under the verified
+  `io.github.sevcanucan` namespace.
+- Added signed Central Portal publications, complete POM metadata, sources
+  and javadoc artifacts, and a protected manual release workflow.
+- Added a dedicated GitHub Actions workflow to diagnose Maven signing.
+- Validated the GPG private key and Gradle publication signing in CI.
+- Preserved existing JitPack publishing compatibility.
 
 ## [1.0.0-rc4] - 2026-10-12
 
