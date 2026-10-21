@@ -8,6 +8,8 @@ import android.os.Looper
 import android.os.Process
 import com.filelogger.FileLogger
 import com.filelogger.LoggerConfig
+import java.io.File
+import java.io.FileOutputStream
 
 class FileLoggerProcessTestService : Service() {
 
@@ -40,12 +42,14 @@ class FileLoggerProcessTestService : Service() {
         if (action == ACTION_HOLD_SESSION || action == ACTION_KILL_SESSION) {
             FileLogger.i("RemoteProcess", "remote-session-is-active")
             val flushed = FileLogger.flush(PROCESS_TEST_TIMEOUT_MILLIS)
-            sendResult(intent, if (flushed) 1 else 0)
             if (action == ACTION_KILL_SESSION) {
+                writeProcessDeathReadyFile(folder, if (flushed) 1 else 0)
                 Handler(Looper.getMainLooper()).postDelayed(
                     { Process.killProcess(Process.myPid()) },
                     200
                 )
+            } else {
+                sendResult(intent, if (flushed) 1 else 0)
             }
         } else if (action == ACTION_CRASH) {
             FileLogger.addBreadcrumb(
@@ -80,6 +84,14 @@ class FileLoggerProcessTestService : Service() {
         }
     }
 
+    private fun writeProcessDeathReadyFile(folder: String, resultCode: Int) {
+        val marker = File(File(filesDir, folder), PROCESS_DEATH_READY_FILE)
+        FileOutputStream(marker).use { output ->
+            output.write(resultCode.toString().toByteArray())
+            output.fd.sync()
+        }
+    }
+
     companion object {
         const val ACTION_WRITE = "com.example.filelogger.WRITE"
         const val ACTION_CRASH = "com.example.filelogger.CRASH"
@@ -91,6 +103,7 @@ class FileLoggerProcessTestService : Service() {
         const val EXTRA_RESULT_CODE = "result_code"
         const val REMOTE_SESSION_ID = "process_b"
         const val DEAD_SESSION_ID = "dead_process"
+        const val PROCESS_DEATH_READY_FILE = ".process-death-ready"
         private const val PROCESS_TEST_TIMEOUT_MILLIS = 60_000L
     }
 }

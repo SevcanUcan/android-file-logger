@@ -180,55 +180,43 @@ class FileLoggerProcessInstrumentationTest {
     @Test
     fun processDeathReleasesSessionLeaseAndAllowsRetentionCleanup() {
         val folder = "multiprocess_death_${System.nanoTime()}"
-        val resultAction = "com.example.filelogger.DEATH_RESULT.${System.nanoTime()}"
-        val ready = CountDownLatch(1)
-        var resultCode = 0
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                resultCode = intent?.getIntExtra(FileLoggerProcessTestService.EXTRA_RESULT_CODE, 0) ?: 0
-                ready.countDown()
-            }
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, IntentFilter(resultAction), Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            context.registerReceiver(receiver, IntentFilter(resultAction))
-        }
+        val logRoot = File(context.filesDir, folder)
+        val deadSession = File(
+            logRoot,
+            "session_${FileLoggerProcessTestService.DEAD_SESSION_ID}"
+        )
+        val readyFile = File(logRoot, FileLoggerProcessTestService.PROCESS_DEATH_READY_FILE)
 
-        try {
-            context.startService(
-                Intent(context, FileLoggerProcessTestService::class.java)
-                    .setAction(FileLoggerProcessTestService.ACTION_KILL_SESSION)
-                    .putExtra(FileLoggerProcessTestService.EXTRA_FOLDER, folder)
-                    .putExtra(FileLoggerProcessTestService.EXTRA_RESULT_ACTION, resultAction)
+        context.startService(
+            Intent(context, FileLoggerProcessTestService::class.java)
+                .setAction(FileLoggerProcessTestService.ACTION_KILL_SESSION)
+                .putExtra(FileLoggerProcessTestService.EXTRA_FOLDER, folder)
+        )
+
+        assertTrue(
+            "remote process did not durably report session initialization",
+            waitForFileContent(readyFile, "1", 30_000)
+        )
+        assertTrue(
+            "remote process did not create a lease marker and flushed session log",
+            hasLeaseAndLogRecord(deadSession)
+        )
+        assertTrue("dead process did not release its session lease", waitForLeaseRelease(deadSession, 15_000))
+
+        FileLogger.init(
+            context,
+            LoggerConfig.dev().copy(
+                logFolder = folder,
+                logFileName = "process.log",
+                sessionLoggingEnabled = true,
+                sessionId = "cleanup_process",
+                maxTotalLogSize = 64,
+                autoFlushOnAppBackground = false,
+                crashCaptureEnabled = false
             )
-            assertTrue("remote process did not create its leased session", ready.await(30, TimeUnit.SECONDS))
-            assertEquals(1, resultCode)
+        )
 
-            val deadSession = File(
-                File(context.filesDir, folder),
-                "session_${FileLoggerProcessTestService.DEAD_SESSION_ID}"
-            )
-            assertTrue(waitForLeaseRelease(deadSession, 15_000))
-
-            FileLogger.init(
-                context,
-                LoggerConfig.dev().copy(
-                    logFolder = folder,
-                    logFileName = "process.log",
-                    sessionLoggingEnabled = true,
-                    sessionId = "cleanup_process",
-                    maxTotalLogSize = 64,
-                    autoFlushOnAppBackground = false,
-                    crashCaptureEnabled = false
-                )
-            )
-
-            assertTrue("A dead process's stale session should be reclaimable", !deadSession.exists())
-        } finally {
-            context.unregisterReceiver(receiver)
-        }
+        assertTrue("A dead process's stale session should be reclaimable", !deadSession.exists())
     }
 
     private fun config(folder: String, crashCapture: Boolean) =
@@ -250,6 +238,27 @@ class FileLoggerProcessInstrumentationTest {
             Thread.sleep(100)
         }
         return directory.listFiles().orEmpty().joinToString("\n") { it.readText() }
+    }
+
+    private fun waitForFileContent(file: File, expected: String, timeoutMillis: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMillis
+        while (System.currentTimeMillis() < deadline) {
+            if (runCatching { file.readText() }.getOrNull() == expected) return true
+            Thread.sleep(100)
+        }
+        return false
+    }
+
+    private fun hasLeaseAndLogRecord(directory: File): Boolean {
+        val files = directory.listFiles().orEmpty()
+        val hasLease = files.any { it.isFile && it.name.endsWith(".lease") }
+        val hasLogRecord = files
+            .filter { it.isFile && !it.name.endsWith(".lease") }
+            .any { file ->
+                runCatching { file.readText().contains("remote-session-is-active") }
+                    .getOrDefault(false)
+            }
+        return hasLease && hasLogRecord
     }
 
     private fun waitForLeaseRelease(directory: File, timeoutMillis: Long): Boolean {
