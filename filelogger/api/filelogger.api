@@ -34,6 +34,15 @@ public final class com/filelogger/CloseableLogDestination$DefaultImpls {
 	public static synthetic fun close$default (Lcom/filelogger/CloseableLogDestination;JILjava/lang/Object;)Z
 }
 
+public abstract interface class com/filelogger/CollectionControlledLogDestination {
+	public abstract fun setCollectionEnabled (ZZJ)Z
+	public static synthetic fun setCollectionEnabled$default (Lcom/filelogger/CollectionControlledLogDestination;ZZJILjava/lang/Object;)Z
+}
+
+public final class com/filelogger/CollectionControlledLogDestination$DefaultImpls {
+	public static synthetic fun setCollectionEnabled$default (Lcom/filelogger/CollectionControlledLogDestination;ZZJILjava/lang/Object;)Z
+}
+
 public final class com/filelogger/DefaultLogger : com/filelogger/StructuredLogger {
 	public fun d (Ljava/lang/String;Ljava/lang/String;)V
 	public fun e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)V

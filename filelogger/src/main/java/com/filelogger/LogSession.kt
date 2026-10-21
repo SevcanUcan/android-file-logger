@@ -35,11 +35,31 @@ internal object LogDirectoryResolver {
         config: LoggerConfig,
         session: LogSession?
     ): File {
-        val root = File(filesDir, config.logFolder)
+        val root = ContainedPathResolver.resolve(
+            root = filesDir,
+            relativePath = config.logFolder,
+            fieldName = "logFolder",
+            allowNested = true
+        )
         return if (config.sessionLoggingEnabled && session != null) {
-            File(root, session.directoryName)
+            ContainedPathResolver.resolve(
+                root = root,
+                relativePath = session.directoryName,
+                fieldName = "session directory",
+                allowNested = false
+            )
         } else {
             root
         }
+    }
+
+    fun resolveSession(root: File, config: LoggerConfig, sessionId: String): File {
+        ContainedPathResolver.validateRelativePath(sessionId, "sessionId", allowNested = false)
+        return ContainedPathResolver.resolve(
+            root = root,
+            relativePath = "${config.sessionFolderPrefix}_$sessionId",
+            fieldName = "session directory",
+            allowNested = false
+        )
     }
 }

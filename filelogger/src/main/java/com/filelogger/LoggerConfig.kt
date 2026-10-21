@@ -30,6 +30,17 @@ data class LoggerConfig(
     val customDestinations: List<LogDestination> = emptyList()
 ) {
     init {
+        ContainedPathResolver.validateRelativePath(logFolder, "logFolder", allowNested = true)
+        ContainedPathResolver.validateRelativePath(logFileName, "logFileName", allowNested = false)
+        ContainedPathResolver.validateRelativePath(zipPrefix, "zipPrefix", allowNested = false)
+        sessionId?.let { id ->
+            ContainedPathResolver.validateRelativePath(id, "sessionId", allowNested = false)
+        }
+        ContainedPathResolver.validateRelativePath(
+            sessionFolderPrefix,
+            "sessionFolderPrefix",
+            allowNested = false
+        )
         require(asyncQueueCapacity > 0) {
             "asyncQueueCapacity must be greater than zero"
         }
@@ -50,9 +61,6 @@ data class LoggerConfig(
         }
         require(maxBreadcrumbBytes > 0) {
             "maxBreadcrumbBytes must be greater than zero"
-        }
-        require(sessionFolderPrefix.isNotBlank()) {
-            "sessionFolderPrefix must not be blank"
         }
     }
 

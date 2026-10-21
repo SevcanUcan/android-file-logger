@@ -10,53 +10,67 @@ permissions:
 jobs:
   diagnose:
     runs-on: macos-latest
-    environment: maven-central
     timeout-minutes: 30
-
     env:
-      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
-      ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
-
+      GNUPGHOME: ${{ runner.temp }}/diagnose-gnupg
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+        with:
+          validate-wrappers: true
 
-      - name: Verify signing secrets exist
+      - name: Create ephemeral diagnostic signing key
         shell: bash
         run: |
-          test -n "$ORG_GRADLE_PROJECT_signingInMemoryKey"
-          test -n "$ORG_GRADLE_PROJECT_signingInMemoryKeyId"
-          test -n "$ORG_GRADLE_PROJECT_signingInMemoryKeyPassword"
-
-      - name: Validate GPG private key
-        shell: bash
-        env:
-          GNUPGHOME: ${{ runner.temp }}/diagnose-gnupg
-        run: |
+          set -euo pipefail
           mkdir -m 700 -p "$GNUPGHOME"
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key \
+            "FileLogger CI Diagnostic <diagnostic@invalid.example>" rsa2048 sign 1d
 
-          printf '%s\n' "$ORG_GRADLE_PROJECT_signingInMemoryKey" |
-            gpg --batch --quiet --import
+          KEY_ID="$(gpg --batch --with-colons --list-secret-keys | \
+            awk -F: '$1 == "sec" { print $5; exit }')"
+          test -n "$KEY_ID"
+          GRADLE_KEY_ID="${KEY_ID: -8}"
+          gpg --batch --pinentry-mode loopback --passphrase '' \
+            --armor --export-secret-keys "$KEY_ID" \
+            > "$RUNNER_TEMP/diagnostic-signing-key.asc"
 
-          if gpg --batch --list-secret-keys --with-colons 7EB5A7EC |
-            grep -q '^sec:'; then
-            echo "Private signing key imported successfully"
-          else
-            echo "::error::Expected private signing key was not found"
-            exit 1
-          fi
+          {
+            echo 'ORG_GRADLE_PROJECT_signingInMemoryKey<<FILELOGGER_KEY'
+            cat "$RUNNER_TEMP/diagnostic-signing-key.asc"
+            echo 'FILELOGGER_KEY'
+            echo "ORG_GRADLE_PROJECT_signingInMemoryKeyId=$GRADLE_KEY_ID"
+            echo 'ORG_GRADLE_PROJECT_signingInMemoryKeyPassword='
+          } >> "$GITHUB_ENV"
 
-      - name: Diagnose GPG signing
+      - name: Diagnose Gradle signing with the ephemeral key
+        shell: bash
         run: |
+          set -euo pipefail
           chmod +x gradlew
-          ./gradlew :filelogger-core:publishToMavenLocal --no-daemon --stacktrace
+          ./gradlew :filelogger-core:publishToMavenLocal \
+            -PverifySignatures=true --no-daemon --stacktrace
+
+      - name: Verify generated signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2)"
+          ROOT="$HOME/.m2/repository/io/github/sevcanucan"
+          FOUND=0
+          while IFS= read -r -d '' SIGNATURE; do
+            gpg --batch --verify "$SIGNATURE" "${SIGNATURE%.asc}"
+            FOUND=$((FOUND + 1))
+          done < <(find "$ROOT" -path "*/$VERSION/*.asc" -print0)
+          test "$FOUND" -gt 0

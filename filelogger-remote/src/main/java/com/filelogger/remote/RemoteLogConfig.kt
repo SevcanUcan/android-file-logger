@@ -25,6 +25,21 @@ fun interface RemoteLogUploader {
     fun upload(batch: RemoteLogBatch): Boolean
 }
 
+class RemoteUploadContext(
+    val batchId: String,
+    val attemptId: String,
+    val attemptNumber: Int
+)
+
+fun interface IdentifiedRemoteLogUploader {
+    @Throws(Exception::class)
+    fun upload(batch: RemoteLogBatch, context: RemoteUploadContext): Boolean
+}
+
+interface CancellableIdentifiedRemoteLogUploader : IdentifiedRemoteLogUploader {
+    fun cancelUpload(context: RemoteUploadContext): Boolean
+}
+
 data class RemoteLogBatch(
     val payload: ByteArray,
     val contentType: String = "application/x-ndjson",

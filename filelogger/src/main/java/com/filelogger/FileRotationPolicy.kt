@@ -10,12 +10,13 @@ internal class FileRotationPolicy(
     private val maxTotalLogSize: Long = Long.MAX_VALUE,
     private val maxLogAgeMillis: Long = Long.MAX_VALUE,
     private val currentTimeMillis: () -> Long = System::currentTimeMillis,
-    private val fileSystem: LogFileSystem = SystemLogFileSystem
+    private val fileSystem: LogFileSystem = SystemLogFileSystem,
+    private val globalRetentionPolicy: GlobalLogRetentionPolicy? = null
 ) {
     private val rotations = AtomicLong()
 
     fun rotateIfNeeded(file: File, incomingBytes: ByteArray) {
-        enforceRetention(file)
+        enforceRetentionInternal(file)
 
         if (maxFileSize <= 0L) {
             return
@@ -32,10 +33,14 @@ internal class FileRotationPolicy(
 
         rotate(file)
         rotations.incrementAndGet()
-        enforceRetention(file)
+        enforceRetentionInternal(file)
     }
 
     fun rotationCount(): Long = rotations.get()
+
+    fun enforceRetention(file: File) {
+        enforceRetentionInternal(file)
+    }
 
     private fun rotate(file: File) {
         if (maxBackupFiles <= 0) {
@@ -62,7 +67,11 @@ internal class FileRotationPolicy(
         return File(file.parentFile, "${file.name}.$index")
     }
 
-    private fun enforceRetention(file: File) {
+    private fun enforceRetentionInternal(file: File) {
+        globalRetentionPolicy?.let {
+            it.enforce(file)
+            return
+        }
         val logFiles = logFiles(file)
         deleteExpiredBackups(file, logFiles)
         trimTotalSize(file, logFiles(file))

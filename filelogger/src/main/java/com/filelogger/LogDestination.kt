@@ -24,9 +24,25 @@ interface ErasableLogDestination {
     ): Boolean
 }
 
+interface CollectionControlledLogDestination {
+    fun setCollectionEnabled(
+        enabled: Boolean,
+        erasePendingData: Boolean = false,
+        timeoutMillis: Long = FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS
+    ): Boolean
+}
+
+internal interface ExportFlushableLogDestination {
+    fun flushForExport(timeoutMillis: Long): Boolean
+}
+
 internal class CompositeLogDestination(
     private val destinations: List<LogDestination>
-) : CloseableLogDestination, DiagnosticLogDestination, ErasableLogDestination {
+) : CloseableLogDestination,
+    DiagnosticLogDestination,
+    ErasableLogDestination,
+    CollectionControlledLogDestination,
+    ExportFlushableLogDestination {
 
     override fun write(record: LogRecord) {
         destinations.forEach { destination ->
@@ -39,11 +55,17 @@ internal class CompositeLogDestination(
     }
 
     override fun flush(timeoutMillis: Long): Boolean {
+        val deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
         return destinations
             .filterIsInstance<FlushableLogDestination>()
             .map { destination ->
+                val remainingNanos = deadlineNanos - System.nanoTime()
+                if (remainingNanos <= 0) return@map false
+                val remainingMillis = java.util.concurrent.TimeUnit.NANOSECONDS
+                    .toMillis(remainingNanos)
+                    .coerceAtLeast(1)
                 try {
-                    destination.flush(timeoutMillis)
+                    destination.flush(remainingMillis)
                 } catch (_: Exception) {
                     false
                 }
@@ -86,5 +108,47 @@ internal class CompositeLogDestination(
                 runCatching { destination.erasePendingData(timeoutMillis) }.getOrDefault(false)
             }
             .all { erased -> erased }
+    }
+
+    override fun setCollectionEnabled(
+        enabled: Boolean,
+        erasePendingData: Boolean,
+        timeoutMillis: Long
+    ): Boolean {
+        val deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+        return destinations
+            .filterIsInstance<CollectionControlledLogDestination>()
+            .map { destination ->
+                val remainingNanos = deadlineNanos - System.nanoTime()
+                if (remainingNanos <= 0) return@map false
+                val remainingMillis = java.util.concurrent.TimeUnit.NANOSECONDS
+                    .toMillis(remainingNanos)
+                    .coerceAtLeast(1)
+                runCatching {
+                    destination.setCollectionEnabled(enabled, erasePendingData, remainingMillis)
+                }.getOrDefault(false)
+            }
+            .all { controlled -> controlled }
+    }
+
+    override fun flushForExport(timeoutMillis: Long): Boolean {
+        val deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+        return destinations
+            .filterNot { it is CollectionControlledLogDestination }
+            .map { destination ->
+                val remainingNanos = deadlineNanos - System.nanoTime()
+                if (remainingNanos <= 0) return@map false
+                val remainingMillis = java.util.concurrent.TimeUnit.NANOSECONDS
+                    .toMillis(remainingNanos)
+                    .coerceAtLeast(1)
+                runCatching {
+                    when (destination) {
+                        is ExportFlushableLogDestination -> destination.flushForExport(remainingMillis)
+                        is FlushableLogDestination -> destination.flush(remainingMillis)
+                        else -> true
+                    }
+                }.getOrDefault(false)
+            }
+            .all { flushed -> flushed }
     }
 }

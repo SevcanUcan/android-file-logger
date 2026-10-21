@@ -11,6 +11,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 object FileLogger : Logger {
 
@@ -25,6 +28,8 @@ object FileLogger : Logger {
     private var delegate: StructuredLogger? = null
     @Volatile
     private var logDirectory: File? = null
+    @Volatile
+    private var storageCoordinator: LogStorageCoordinator? = null
     @Volatile
     private var logsRootDirectory: File? = null
     @Volatile
@@ -45,6 +50,8 @@ object FileLogger : Logger {
     private var installedUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private var lifecycleContext = WeakReference<Context>(null)
     private var lifecycleCallback: ComponentCallbacks2? = null
+    private var lifecycleFlushExecutor: ExecutorService? = null
+    private val lifecycleFlushState = AtomicInteger(LIFECYCLE_FLUSH_IDLE)
     private val tagMinimumLevels = ConcurrentHashMap<String, LogLevel>()
     private val globalContext = ConcurrentHashMap<String, String>()
 
@@ -75,7 +82,13 @@ object FileLogger : Logger {
             this.processName = processName
             supportReportEnvironment = reportEnvironment
             this.session = session
-            logsRootDirectory = File(filesDir, config.logFolder)
+            logsRootDirectory = ContainedPathResolver.resolve(
+                root = filesDir,
+                relativePath = config.logFolder,
+                fieldName = "logFolder",
+                allowNested = true
+            )
+            storageCoordinator = LogStorageCoordinator(logsRootDirectory())
             logDirectory = sessionLogDirectory
             exportDirectory = File(filesDir, "log_exports")
             recentLogBuffer = if (config.crashCaptureEnabled) {
@@ -90,7 +103,8 @@ object FileLogger : Logger {
                 configProvider = { this.config },
                 packageNameProvider = { packageName },
                 processNameProvider = { processName },
-                recentLogBuffer = recentLogBuffer
+                recentLogBuffer = recentLogBuffer,
+                storageCoordinator = storageCoordinator
             )
             destination = newDestination
             delegate = DefaultLogger(
@@ -224,12 +238,20 @@ object FileLogger : Logger {
         timeoutMillis: Long = FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS
     ): Boolean {
         require(timeoutMillis > 0) { "timeoutMillis must be greater than zero" }
+        if (!enabled) collectionEnabled = false
+        val controlled = (destination as? CollectionControlledLogDestination)
+            ?.setCollectionEnabled(enabled, deleteExistingData, timeoutMillis)
+            ?: true
+        if (!controlled) return false
         collectionEnabled = enabled
-        return if (!enabled && deleteExistingData) {
-            deleteAllLogs(includeExports = true, timeoutMillis = timeoutMillis)
-        } else {
-            true
+        if (!enabled && deleteExistingData && destination != null) {
+            clearBreadcrumbs()
+            if (!flushLocalDestinations(timeoutMillis)) return false
+            val logsDeleted = deleteRecursivelyIfPresent(logsRootDirectory())
+            val exportsDeleted = deleteRecursivelyIfPresent(exportDirectory())
+            return logsDeleted && exportsDeleted
         }
+        return true
     }
 
     fun deletePendingUploads(
@@ -248,20 +270,30 @@ object FileLogger : Logger {
         require(timeoutMillis > 0) { "timeoutMillis must be greater than zero" }
         return synchronized(lifecycleLock) {
             val wasEnabled = collectionEnabled
+            var deletionSucceeded = false
             collectionEnabled = false
             clearBreadcrumbs()
             try {
-                val flushed = (destination() as? FlushableLogDestination)
-                    ?.flush(timeoutMillis)
+                val pendingErased = (destination() as? CollectionControlledLogDestination)
+                    ?.setCollectionEnabled(false, true, timeoutMillis)
+                    ?: (destination() as? ErasableLogDestination)
+                        ?.erasePendingData(timeoutMillis)
                     ?: true
-                val pendingErased = (destination() as? ErasableLogDestination)
-                    ?.erasePendingData(timeoutMillis)
-                    ?: true
-                val logsDeleted = deleteRecursivelyIfPresent(logsRootDirectory())
-                val exportsDeleted = !includeExports || deleteRecursivelyIfPresent(exportDirectory())
-                flushed && pendingErased && logsDeleted && exportsDeleted
+                val localDrained = flushLocalDestinations(timeoutMillis)
+                val logsDeleted = localDrained && deleteRecursivelyIfPresent(logsRootDirectory())
+                val exportsDeleted = localDrained &&
+                    (!includeExports || deleteRecursivelyIfPresent(exportDirectory()))
+                deletionSucceeded = pendingErased && localDrained && logsDeleted && exportsDeleted
+                deletionSucceeded
             } finally {
-                collectionEnabled = wasEnabled
+                if (wasEnabled && deletionSucceeded) {
+                    val resumed = (destination() as? CollectionControlledLogDestination)
+                        ?.setCollectionEnabled(true, false, timeoutMillis)
+                        ?: true
+                    collectionEnabled = resumed
+                } else {
+                    collectionEnabled = false
+                }
             }
         }
     }
@@ -339,14 +371,11 @@ object FileLogger : Logger {
         sessionId: String,
         query: LogQuery = LogQuery()
     ): List<StoredLogEntry> {
-        require(sessionId.isNotBlank()) { "sessionId must not be blank" }
-        require(sessionId.none { it == '/' || it == '\\' }) {
-            "sessionId must not contain path separators"
-        }
         flush()
-        val directory = File(
-            logsRootDirectory(),
-            "${config.sessionFolderPrefix}_$sessionId"
+        val directory = LogDirectoryResolver.resolveSession(
+            root = logsRootDirectory(),
+            config = config,
+            sessionId = sessionId
         )
         return LogReader.read(
             directory = directory,
@@ -358,14 +387,15 @@ object FileLogger : Logger {
 
     fun exportLogs(
         outputFile: File = defaultExportFile(),
-        redactor: LogRedactor = LogRedactor.NONE
+        redactor: LogRedactor = LogRedactor.DEFAULT_SENSITIVE
     ): File {
-        flush()
+        check(flushLocalDestinations()) { "Cannot export logs because the local flush barrier failed" }
         return LogExporter.export(
             logDirectory = logDirectory(),
             outputFile = outputFile,
             baseLogFileName = config.logFileName,
             redactor = redactor,
+            storageCoordinator = storageCoordinator,
             metadataEntries = mapOf(
                 "diagnostics.json" to DiagnosticBundle.toJson(
                     appPackageName = packageName ?: "unknown",
@@ -383,7 +413,7 @@ object FileLogger : Logger {
         options: SupportReportOptions = SupportReportOptions(),
         outputFile: File = defaultSupportReportFile()
     ): File {
-        flush()
+        check(flushLocalDestinations()) { "Cannot create a support report because the local flush barrier failed" }
         val generatedAtMillis = System.currentTimeMillis()
         val environment = supportReportEnvironment
             ?: throw IllegalStateException(
@@ -413,7 +443,8 @@ object FileLogger : Logger {
             baseLogFileName = config.logFileName,
             redactor = options.redactor,
             metadataEntries = entries,
-            includeLogs = options.includeLogs
+            includeLogs = options.includeLogs,
+            storageCoordinator = storageCoordinator
         )
     }
 
@@ -441,17 +472,22 @@ object FileLogger : Logger {
     }
 
     private fun registerAutoFlush(context: Context) {
+        lifecycleFlushState.set(LIFECYCLE_FLUSH_IDLE)
+        val flushExecutor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "FileLogger-LifecycleFlush").apply { isDaemon = true }
+        }
+        lifecycleFlushExecutor = flushExecutor
         val callback = object : ComponentCallbacks2 {
             override fun onConfigurationChanged(newConfig: Configuration) = Unit
 
             @Suppress("OVERRIDE_DEPRECATION")
             override fun onLowMemory() {
-                flushIfInitialized()
+                submitLifecycleFlush(flushExecutor)
             }
 
             override fun onTrimMemory(level: Int) {
                 if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
-                    flushIfInitialized()
+                    submitLifecycleFlush(flushExecutor)
                 }
             }
         }
@@ -460,11 +496,68 @@ object FileLogger : Logger {
         lifecycleCallback = callback
     }
 
+    private fun submitLifecycleFlush(executor: ExecutorService) {
+        while (true) {
+            when (lifecycleFlushState.get()) {
+                LIFECYCLE_FLUSH_IDLE -> {
+                    if (!lifecycleFlushState.compareAndSet(LIFECYCLE_FLUSH_IDLE, LIFECYCLE_FLUSH_RUNNING)) {
+                        continue
+                    }
+                }
+                LIFECYCLE_FLUSH_RUNNING -> {
+                    lifecycleFlushState.compareAndSet(
+                        LIFECYCLE_FLUSH_RUNNING,
+                        LIFECYCLE_FLUSH_TRAILING_REQUESTED
+                    )
+                    return
+                }
+                LIFECYCLE_FLUSH_TRAILING_REQUESTED -> return
+            }
+            break
+        }
+        val accepted = runCatching {
+            executor.execute {
+                flushLoop@ while (true) {
+                    runCatching { flushIfInitialized() }
+                    while (true) {
+                        when (lifecycleFlushState.get()) {
+                            LIFECYCLE_FLUSH_TRAILING_REQUESTED -> {
+                                if (lifecycleFlushState.compareAndSet(
+                                        LIFECYCLE_FLUSH_TRAILING_REQUESTED,
+                                        LIFECYCLE_FLUSH_RUNNING
+                                    )
+                                ) {
+                                    continue@flushLoop
+                                }
+                            }
+                            LIFECYCLE_FLUSH_RUNNING -> {
+                                if (lifecycleFlushState.compareAndSet(
+                                        LIFECYCLE_FLUSH_RUNNING,
+                                        LIFECYCLE_FLUSH_IDLE
+                                    )
+                                ) {
+                                    return@execute
+                                }
+                            }
+                            else -> return@execute
+                        }
+                    }
+                }
+            }
+        }.isSuccess
+        if (!accepted) {
+            lifecycleFlushState.set(LIFECYCLE_FLUSH_IDLE)
+        }
+    }
+
     private fun unregisterAutoFlush() {
         val callback = lifecycleCallback ?: return
         lifecycleContext.get()?.unregisterComponentCallbacks(callback)
         lifecycleCallback = null
         lifecycleContext.clear()
+        lifecycleFlushExecutor?.shutdownNow()
+        lifecycleFlushExecutor = null
+        lifecycleFlushState.set(LIFECYCLE_FLUSH_IDLE)
     }
 
     private fun installCrashHandler() {
@@ -535,6 +628,7 @@ object FileLogger : Logger {
         }
 
         logDirectory = null
+        storageCoordinator = null
         logsRootDirectory = null
         exportDirectory = null
         packageName = null
@@ -549,6 +643,21 @@ object FileLogger : Logger {
     private fun flushIfInitialized() {
         val currentDestination = destination ?: return
         (currentDestination as? FlushableLogDestination)?.flush()
+    }
+
+    private const val LIFECYCLE_FLUSH_IDLE = 0
+    private const val LIFECYCLE_FLUSH_RUNNING = 1
+    private const val LIFECYCLE_FLUSH_TRAILING_REQUESTED = 2
+
+    private fun flushLocalDestinations(
+        timeoutMillis: Long = FlushableLogDestination.DEFAULT_FLUSH_TIMEOUT_MILLIS
+    ): Boolean {
+        val currentDestination = destination ?: return true
+        return when (currentDestination) {
+            is ExportFlushableLogDestination -> currentDestination.flushForExport(timeoutMillis)
+            is FlushableLogDestination -> currentDestination.flush(timeoutMillis)
+            else -> true
+        }
     }
 
     private fun logger(): StructuredLogger {

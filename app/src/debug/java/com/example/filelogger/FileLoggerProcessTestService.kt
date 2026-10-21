@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.Process
 import com.filelogger.FileLogger
 import com.filelogger.LoggerConfig
 
@@ -15,18 +16,38 @@ class FileLoggerProcessTestService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
         val folder = requireNotNull(intent?.getStringExtra(EXTRA_FOLDER))
+        if (action == ACTION_STOP) {
+            FileLogger.shutdown(PROCESS_TEST_TIMEOUT_MILLIS)
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
         FileLogger.init(
             this,
             LoggerConfig.dev().copy(
                 logFolder = folder,
                 logFileName = "process.log",
-                sessionLoggingEnabled = false,
+                sessionLoggingEnabled = action == ACTION_HOLD_SESSION || action == ACTION_KILL_SESSION,
+                sessionId = when (action) {
+                    ACTION_HOLD_SESSION -> REMOTE_SESSION_ID
+                    ACTION_KILL_SESSION -> DEAD_SESSION_ID
+                    else -> null
+                },
                 autoFlushOnAppBackground = false,
                 crashCaptureEnabled = action == ACTION_CRASH
             )
         )
 
-        if (action == ACTION_CRASH) {
+        if (action == ACTION_HOLD_SESSION || action == ACTION_KILL_SESSION) {
+            FileLogger.i("RemoteProcess", "remote-session-is-active")
+            val flushed = FileLogger.flush(PROCESS_TEST_TIMEOUT_MILLIS)
+            sendResult(intent, if (flushed) 1 else 0)
+            if (action == ACTION_KILL_SESSION) {
+                Handler(Looper.getMainLooper()).postDelayed(
+                    { Process.killProcess(Process.myPid()) },
+                    200
+                )
+            }
+        } else if (action == ACTION_CRASH) {
             FileLogger.addBreadcrumb(
                 message = "Opened checkout before crash",
                 category = "navigation",
@@ -43,24 +64,33 @@ class FileLoggerProcessTestService : Service() {
             val flushed = FileLogger.flush(PROCESS_TEST_TIMEOUT_MILLIS)
             val shutdown = FileLogger.shutdown(PROCESS_TEST_TIMEOUT_MILLIS)
             val success = flushed && shutdown
-            intent?.getStringExtra(EXTRA_RESULT_ACTION)?.let { resultAction ->
-                sendBroadcast(
-                    Intent(resultAction)
-                        .setPackage(packageName)
-                        .putExtra(EXTRA_RESULT_CODE, if (success) 1 else 0)
-                )
-            }
+            sendResult(intent, if (success) 1 else 0)
             stopSelf(startId)
         }
         return START_NOT_STICKY
     }
 
+    private fun sendResult(intent: Intent?, resultCode: Int) {
+        intent?.getStringExtra(EXTRA_RESULT_ACTION)?.let { resultAction ->
+            sendBroadcast(
+                Intent(resultAction)
+                    .setPackage(packageName)
+                    .putExtra(EXTRA_RESULT_CODE, resultCode)
+            )
+        }
+    }
+
     companion object {
         const val ACTION_WRITE = "com.example.filelogger.WRITE"
         const val ACTION_CRASH = "com.example.filelogger.CRASH"
+        const val ACTION_HOLD_SESSION = "com.example.filelogger.HOLD_SESSION"
+        const val ACTION_KILL_SESSION = "com.example.filelogger.KILL_SESSION"
+        const val ACTION_STOP = "com.example.filelogger.STOP"
         const val EXTRA_FOLDER = "folder"
         const val EXTRA_RESULT_ACTION = "result_action"
         const val EXTRA_RESULT_CODE = "result_code"
+        const val REMOTE_SESSION_ID = "process_b"
+        const val DEAD_SESSION_ID = "dead_process"
         private const val PROCESS_TEST_TIMEOUT_MILLIS = 60_000L
     }
 }

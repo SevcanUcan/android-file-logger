@@ -1,3 +1,11 @@
+public abstract interface class com/filelogger/remote/CancellableIdentifiedRemoteLogUploader : com/filelogger/remote/IdentifiedRemoteLogUploader {
+	public abstract fun cancelUpload (Lcom/filelogger/remote/RemoteUploadContext;)Z
+}
+
+public abstract interface class com/filelogger/remote/IdentifiedRemoteLogUploader {
+	public abstract fun upload (Lcom/filelogger/remote/RemoteLogBatch;Lcom/filelogger/remote/RemoteUploadContext;)Z
+}
+
 public final class com/filelogger/remote/RemoteLogBatch {
 	public fun <init> ([BLjava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> ([BLjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -38,16 +46,30 @@ public final class com/filelogger/remote/RemoteLogConfig {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class com/filelogger/remote/RemoteLogDestination : com/filelogger/CloseableLogDestination, com/filelogger/DiagnosticLogDestination, com/filelogger/ErasableLogDestination {
+public final class com/filelogger/remote/RemoteLogDestination : com/filelogger/CloseableLogDestination, com/filelogger/CollectionControlledLogDestination, com/filelogger/DiagnosticLogDestination, com/filelogger/ErasableLogDestination {
+	public static final field Companion Lcom/filelogger/remote/RemoteLogDestination$Companion;
 	public fun <init> (Lcom/filelogger/remote/RemoteLogUploader;Lcom/filelogger/remote/RemoteLogConfig;)V
 	public fun close (J)Z
 	public fun diagnostics ()Lcom/filelogger/LogDiagnostics;
 	public fun erasePendingData (J)Z
 	public fun flush (J)Z
+	public fun setCollectionEnabled (ZZJ)Z
+	public static final fun withIdentifiedUploader (Lcom/filelogger/remote/IdentifiedRemoteLogUploader;Lcom/filelogger/remote/RemoteLogConfig;)Lcom/filelogger/remote/RemoteLogDestination;
 	public fun write (Lcom/filelogger/LogRecord;)V
+}
+
+public final class com/filelogger/remote/RemoteLogDestination$Companion {
+	public final fun withIdentifiedUploader (Lcom/filelogger/remote/IdentifiedRemoteLogUploader;Lcom/filelogger/remote/RemoteLogConfig;)Lcom/filelogger/remote/RemoteLogDestination;
 }
 
 public abstract interface class com/filelogger/remote/RemoteLogUploader {
 	public abstract fun upload (Lcom/filelogger/remote/RemoteLogBatch;)Z
+}
+
+public final class com/filelogger/remote/RemoteUploadContext {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;I)V
+	public final fun getAttemptId ()Ljava/lang/String;
+	public final fun getAttemptNumber ()I
+	public final fun getBatchId ()Ljava/lang/String;
 }
 
