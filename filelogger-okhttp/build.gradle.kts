@@ -49,7 +49,7 @@ mavenPublishing {
 
 dependencies {
     api(project(":filelogger"))
-    implementation(libs.okhttp)
+    api(libs.okhttp)
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
 }

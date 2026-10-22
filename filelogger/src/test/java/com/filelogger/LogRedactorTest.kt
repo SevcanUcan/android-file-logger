@@ -1,6 +1,7 @@
 package com.filelogger
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LogRedactorTest {
@@ -25,5 +26,17 @@ class LogRedactorTest {
         )
 
         assertEquals("third", redactor.redact("first"))
+    }
+
+    @Test
+    fun `default sensitive redactor masks json secrets and jwt`() {
+        val line = """{"password":"hunter2","access_token":"access-secret","safe":"value","jwt":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.signature"}"""
+
+        val redacted = LogRedactor.DEFAULT_SENSITIVE.redact(line)
+
+        assertTrue(!redacted.contains("hunter2"))
+        assertTrue(!redacted.contains("access-secret"))
+        assertTrue(!redacted.contains("eyJhbGciOiJIUzI1NiJ9"))
+        assertTrue(redacted.contains("\"safe\":\"value\""))
     }
 }

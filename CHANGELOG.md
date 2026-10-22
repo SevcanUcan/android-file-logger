@@ -7,6 +7,13 @@ final `1.0.0` API baseline is declared stable.
 
 ## Unreleased
 
+### Fixed
+
+- Aligned the release metadata and installation documentation with the RC7
+  candidate version.
+- Exposed OkHttp as a compile-time transitive dependency of
+  `filelogger-okhttp`, matching the module's public API.
+
 ## [1.0.0-rc6] - 2026-10-15
 
 ### Changed

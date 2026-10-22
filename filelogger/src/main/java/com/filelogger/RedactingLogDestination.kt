@@ -3,14 +3,20 @@ package com.filelogger
 internal class RedactingLogDestination(
     private val delegate: LogDestination,
     private val redactor: LogRedactor
-) : CloseableLogDestination, DiagnosticLogDestination, ErasableLogDestination {
+) : CloseableLogDestination,
+    DiagnosticLogDestination,
+    ErasableLogDestination,
+    CollectionControlledLogDestination,
+    ExportFlushableLogDestination {
 
     override fun write(record: LogRecord) {
         val throwableText = record.throwableText ?: record.throwable?.stackTraceString()
         delegate.write(
             record.copy(
                 message = redactor.redact(record.message),
-                attributes = record.attributes.mapValues { (_, value) -> redactor.redact(value) },
+                attributes = record.attributes.mapValues { (key, value) ->
+                    SensitiveFieldPolicy.redactAttribute(key, value, redactor)
+                },
                 throwable = null,
                 throwableText = throwableText?.let(redactor::redact)
             )
@@ -31,4 +37,17 @@ internal class RedactingLogDestination(
 
     override fun erasePendingData(timeoutMillis: Long): Boolean =
         (delegate as? ErasableLogDestination)?.erasePendingData(timeoutMillis) ?: true
+
+    override fun setCollectionEnabled(
+        enabled: Boolean,
+        erasePendingData: Boolean,
+        timeoutMillis: Long
+    ): Boolean = (delegate as? CollectionControlledLogDestination)
+        ?.setCollectionEnabled(enabled, erasePendingData, timeoutMillis)
+        ?: true
+
+    override fun flushForExport(timeoutMillis: Long): Boolean =
+        (delegate as? ExportFlushableLogDestination)?.flushForExport(timeoutMillis)
+            ?: (delegate as? FlushableLogDestination)?.flush(timeoutMillis)
+            ?: true
 }

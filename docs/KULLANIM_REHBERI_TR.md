@@ -51,7 +51,7 @@ Kullanmadığınız modülü eklemezsiniz. Böylece gereksiz SDK ve kod uygulama
 Kütüphanenin mevcut sürümü:
 
 ```text
-1.0.0-rc6
+1.0.0-rc7
 ```
 
 `rc`, release candidate anlamına gelir. Kütüphane kapsamlı testlerden geçmiştir
@@ -59,7 +59,7 @@ fakat final `1.0.0` etiketi henüz verilmemiştir.
 
 > **Yayın durumu:** `filelogger`, `filelogger-core`, `filelogger-okhttp`,
 > `filelogger-remote`, `filelogger-crashlytics`, `filelogger-otel` ve
-> `filelogger-ui` modülleri `1.0.0-rc6` sürümünün parçalarıdır.
+> `filelogger-ui` modülleri `1.0.0-rc7` sürümünün parçalarıdır.
 
 ## 3. Maven Central Deposunu Kontrol Edin
 
@@ -108,7 +108,7 @@ app/build.gradle.kts
 ```kotlin
 dependencies {
     implementation(
-        "io.github.sevcanucan:filelogger:1.0.0-rc6"
+        "io.github.sevcanucan:filelogger:1.0.0-rc7"
     )
 }
 ```
@@ -117,7 +117,7 @@ Groovy karşılığı:
 
 ```groovy
 dependencies {
-    implementation 'io.github.sevcanucan:filelogger:1.0.0-rc6'
+    implementation 'io.github.sevcanucan:filelogger:1.0.0-rc7'
 }
 ```
 
@@ -127,32 +127,32 @@ zorunlu değildir:
 ```kotlin
 // OkHttp istek ve cevaplarını loglamak için:
 implementation(
-    "io.github.sevcanucan:filelogger-okhttp:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-okhttp:1.0.0-rc7"
 )
 
 // Logları kendi HTTPS sunucunuza göndermek için:
 implementation(
-    "io.github.sevcanucan:filelogger-remote:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-remote:1.0.0-rc7"
 )
 
 // Firebase Crashlytics'e WARN/ERROR göndermek için:
 implementation(
-    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7"
 )
 
 // OpenTelemetry pipeline'ına structured log göndermek için:
 implementation(
-    "io.github.sevcanucan:filelogger-otel:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-otel:1.0.0-rc7"
 )
 
 // Compose içinde log görüntüleme ekranı için:
 implementation(
-    "io.github.sevcanucan:filelogger-ui:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-ui:1.0.0-rc7"
 )
 
 // Android/JVM/iOS/Wasm ortak kodundan loglama için:
 implementation(
-    "io.github.sevcanucan:filelogger-core:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-core:1.0.0-rc7"
 )
 ```
 
@@ -474,10 +474,15 @@ otomatik olarak toplanmaz.
 Yalnızca log dosyalarını ZIP yapmak isterseniz:
 
 ```kotlin
-val archive = FileLogger.exportLogs(
-    redactor = LogRedactor.DEFAULT_SENSITIVE
-)
+val archive = FileLogger.exportLogs()
 ```
+
+Bu işlem varsayılan olarak `LogRedactor.DEFAULT_SENSITIVE` uygular. Redaction yalnızca
+ZIP'e yazılan kopyaya uygulanır; cihazdaki kaynak log dosyası değiştirilmez. Açıkça
+`LogRedactor.NONE` vermek mümkündür ancak bu, eski loglardaki hassas verileri ZIP'e
+taşıyabilir. Regex tabanlı redaction bilinen e-posta, token, JWT, JSON gizli alan ve
+benzeri kalıplar için ek korumadır; uygulamaya özel her hassas veriyi yakalama garantisi
+vermez.
 
 ## 13. Kullanıcı İzni ve Logları Silme
 
@@ -544,9 +549,19 @@ val client = OkHttpClient.Builder()
     .build()
 ```
 
-Body loglama varsayılan olarak kapalıdır. Authorization, cookie ve API key
-başlıkları maskelenir. Production ortamında hassas request/response body'lerini
-loglamayın.
+Body loglama varsayılan olarak kapalıdır. URL query değerleri request, response ve
+hata loglarında maskelenir. Authorization, cookie ve API key başlıkları büyük/küçük
+harf fark etmeksizin maskelenir. E-posta ve JWT path segmentleri temizlenir;
+`reset-password`, `token`, doğrulama, aktivasyon, davet ve magic-link gibi bilinen
+hassas URL akışlarından hemen sonraki path segmenti tamamen maskelenir. Bu bir
+heuristic'tir; uygulamaya özel opak path sırlarının tamamını garanti etmez. Body
+loglama açıldığında yalnızca tekrar okunabilir
+metin body'leri sınırlı bir capture buffer'a alınır; one-shot, duplex ve binary body'ler
+atlanır. Gerçek OkHttp request'i değiştirilmez. Limit, FileLogger'ın buffer'ını sınırlar;
+özel bir `RequestBody` sınıfının kendi içinde yaptığı bellek tahsislerini engelleyemez.
+Yan etkili body implementasyonlarında body loglamayı açmayın. Custom `Logger` arayüzü
+log seviyesinin kapalı olduğunu bildiremediği için lazy değerlendirme garantisi yalnızca
+varsayılan `FileLogger` için sağlanır.
 
 ## 16. Compose Log Görüntüleyici
 
@@ -578,9 +593,49 @@ FileLogger
     -> geliştiriciye bildirim/e-posta
 ```
 
-`filelogger-remote` batch, gzip, disk spool ve retry sağlar. Gerçek HTTPS isteğini,
+`filelogger-remote` batch, gzip, disk spool ve retry sağlar. Spool klasörünü mümkünse
+`noBackupFilesDir` altında tutun; `filesDir` kullanırsanız log, export ve spool yollarını
+uygulamanızın Android backup kurallarından ayrıca hariç tutun. Gerçek HTTPS isteğini,
 kimlik doğrulamasını, sertifika politikasını ve sunucu tarafını uygulama sahibi
 oluşturur.
+
+Tekrar denemelerde aynı batch kimliğini sunucuya iletmek için identified uploader
+kullanın:
+
+```kotlin
+val remoteDestination = RemoteLogDestination.withIdentifiedUploader(
+    uploader = IdentifiedRemoteLogUploader { batch, context ->
+        backend.upload(
+            body = batch.payload,
+            contentType = batch.contentType,
+            contentEncoding = batch.contentEncoding,
+            idempotencyKey = context.batchId
+        )
+    },
+    config = RemoteLogConfig(
+        spoolDirectory = File(noBackupFilesDir, "pending_logs")
+    )
+)
+```
+
+`batchId` ilk spool commit'inde oluşur ve retry ile uygulama yeniden başlatmalarında
+aynı kalır. `attemptId` ise her upload denemesi için farklıdır. Exactly-once teslimat
+yalnızca istemciyle garanti edilemez: backend aynı `batchId` değerini atomik olarak
+tanıyıp daha önce kabul edilmiş isteği yeniden işlememelidir.
+
+`FileLogger.setCollectionEnabled(false)` yeni collection ve retry başlangıçlarını
+kalıcı olarak duraklatır. `deleteExistingData = true`, aktif upload iptal edilmeden veya
+durable spool tamamen silinmeden başarı bildirmez. `cancelUpload()` yalnızca belirtilen
+denemeyi iptal etme isteğidir; sunucunun daha önce aldığı veriyi silmez. Uploader ağ
+çağrısını gerçekten iptal edebilmelidir.
+
+Remote spool payload'ları yazma ve yeniden okuma sırasında 16 MiB ile sınırlıdır.
+Boş veya daha büyük dosyalar belleğe alınmaz, sessizce silinmez ve `flush()` sonucunu
+başarısız tutar; aynı taramadaki sonraki sağlam batch'ler yine gönderilebilir. Spool
+formatında payload checksum bulunmadığından sıfırdan büyük kısmi bozulmaların tamamı
+tespit edilemez. Aynı process'te revoke yeni upload kaydından önce lineerleşir;
+process'ler arasında kesin nokta durable pause marker'ın yazılmasıdır. Başarılı revoke
+sonrasında yeni claim başlamaz, ancak sunucunun daha önce aldığı istek geri çağrılamaz.
 
 ### 17.1 Firebase Crashlytics'e Gönderim
 
@@ -595,7 +650,7 @@ Modülü ekleyin:
 
 ```kotlin
 implementation(
-    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7"
 )
 ```
 
@@ -637,7 +692,7 @@ Modülü ekleyin:
 
 ```kotlin
 implementation(
-    "io.github.sevcanucan:filelogger-otel:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-otel:1.0.0-rc7"
 )
 ```
 
@@ -789,7 +844,7 @@ Kontrol edin:
 
 - `settings.gradle.kts` içinde `google()` ve `mavenCentral()` var mı?
 - İnternet bağlantısı çalışıyor mu?
-- Sürüm tam olarak `1.0.0-rc6` mü?
+- Sürüm tam olarak `1.0.0-rc7` mi?
 - Gradle Offline Mode kapalı mı?
 - **Sync Project with Gradle Files** çalıştırıldı mı?
 
@@ -834,6 +889,18 @@ Normal kapanış veya kritik işlem öncesinde:
 FileLogger.flush()
 ```
 
+`FileLogger.flush()` çağrısından önce kabul edilmiş kayıtlar için bir bariyer
+oluşturur. Dosya yazma hatası oluşmuşsa veya son dosyanın `FileDescriptor.sync()`
+işlemi başarısızsa `false` döner. Bu sonuç ani process kill, güç kaybı veya donanım
+arızasına karşı kalıcı saklama garantisi değildir.
+
+`RemoteLogDestination.flush()` için `true`; bariyer öncesindeki batch'lerin spool'a
+yazıldığını, uygulamanın sağladığı uploader'ın `true` döndürdüğünü ve bekleyen commit
+edilmiş batch kalmadığını ifade eder. Sunucunun veriyi kalıcı kaydettiğini ancak sizin
+uploader/backend protokolünüz garanti edebilir. Spool yazılamazsa batch sınırlı
+bellekte tutulup sonraki flush veya shutdown sırasında yeniden denenir; uygulama bu
+sırada öldürülürse henüz diske commit edilmemiş kayıt kurtarılamaz.
+
 Uygulama runtime'ını kontrollü kapatmak için:
 
 ```kotlin
@@ -869,7 +936,7 @@ Ani güç kaybı, native crash, force-stop ve işletim sistemi tarafından anlı
 Bir kullanıcı yalnızca şunları yaparak başlayabilir:
 
 1. `settings.gradle.kts` içinde `mavenCentral()` bulunduğunu kontrol eder.
-2. `filelogger:1.0.0-rc6` bağımlılığını ekler.
+2. `filelogger:1.0.0-rc7` bağımlılığını ekler.
 3. `Application.onCreate()` içinde `FileLogger.install(...)` çağırır.
 4. İstediği yerde `FileLogger.e(...)` kullanır.
 5. ZIP paylaşmak için FileProvider tanımlar.

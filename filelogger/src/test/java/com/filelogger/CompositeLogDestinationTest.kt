@@ -91,6 +91,18 @@ class CompositeLogDestinationTest {
         assertEquals(1, recording.closeCallCount)
     }
 
+    @Test
+    fun `export barrier drains local destinations without requiring remote delivery`() {
+        val local = RecordingFlushableDestination()
+        val remote = OfflineControlledDestination()
+        val composite = CompositeLogDestination(listOf(local, remote))
+
+        assertTrue(composite.flushForExport(100))
+
+        assertEquals(1, local.flushCallCount)
+        assertEquals(0, remote.flushCallCount)
+    }
+
     private class RecordingDestination : LogDestination {
         val records = mutableListOf<LogRecord>()
 
@@ -153,5 +165,24 @@ class CompositeLogDestinationTest {
         override fun close(timeoutMillis: Long): Boolean {
             throw IllegalStateException("boom")
         }
+    }
+
+    private class OfflineControlledDestination :
+        FlushableLogDestination,
+        CollectionControlledLogDestination {
+        var flushCallCount = 0
+
+        override fun write(record: LogRecord) = Unit
+
+        override fun flush(timeoutMillis: Long): Boolean {
+            flushCallCount += 1
+            return false
+        }
+
+        override fun setCollectionEnabled(
+            enabled: Boolean,
+            erasePendingData: Boolean,
+            timeoutMillis: Long
+        ): Boolean = true
     }
 }

@@ -4,5 +4,13 @@
             android:name=".FileLoggerProcessTestService"
             android:exported="false"
             android:process=":logger_test" />
+        <service
+            android:name=".FileLoggerCrashProcessTestService"
+            android:exported="false"
+            android:process=":logger_crash_test" />
+        <service
+            android:name=".RemoteProcessTestService"
+            android:exported="false"
+            android:process=":remote_test" />
     </application>
 </manifest>

@@ -44,6 +44,42 @@ class RedactingLogDestinationTest {
         assertEquals(1, delegate.eraseCalls)
     }
 
+    @Test
+    fun `redacts complete values for sensitive attribute keys`() {
+        val delegate = RecordingDestination()
+        val destination = RedactingLogDestination(delegate, LogRedactor.DEFAULT_SENSITIVE)
+
+        destination.write(
+            testRecord(
+                attributes = mapOf(
+                    "password" to "opaque-value-42",
+                    "access_token" to "another-opaque-value",
+                    "screen" to "checkout"
+                )
+            )
+        )
+
+        assertEquals("[REDACTED]", delegate.record.attributes.getValue("password"))
+        assertEquals("[REDACTED]", delegate.record.attributes.getValue("access_token"))
+        assertEquals("checkout", delegate.record.attributes.getValue("screen"))
+    }
+
+    @Test
+    fun `chaining the default redactor cannot bypass sensitive attribute key redaction`() {
+        val delegate = RecordingDestination()
+        val chained = LogRedactor.chain(
+            LogRedactor.DEFAULT_SENSITIVE,
+            LogRedactor { value -> value }
+        )
+        val destination = RedactingLogDestination(delegate, chained)
+
+        destination.write(
+            testRecord(attributes = mapOf("password" to "opaque-value-without-a-pattern"))
+        )
+
+        assertEquals("[REDACTED]", delegate.record.attributes.getValue("password"))
+    }
+
     private class RecordingDestination :
         CloseableLogDestination,
         DiagnosticLogDestination,

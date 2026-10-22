@@ -70,6 +70,11 @@ val session = FileLogger.session()
 - clears runtime tag-level overrides
 - releases session and directory references
 
+Low-memory and UI-hidden callbacks coalesce while one lifecycle flush is queued or
+running. A blocked destination therefore cannot create an unbounded executor backlog;
+a signal received during the running barrier requests one trailing barrier in the
+same executor task. Further signals coalesce into that trailing pass.
+
 Applications and tests can explicitly release the logger runtime:
 
 ```kotlin
@@ -219,24 +224,55 @@ Dropped records are counted internally. This is useful for tests now, and later 
 
 ## Flush Reliability
 
-`FileLogger.flush()` waits for the async queue to reach a flush marker. When the marker is processed, the async destination also calls `flush()` on the wrapped destination if it supports `FlushableLogDestination`.
+`FileLogger.flush()` waits for the async queue to reach a flush marker. The marker is
+ordered after records accepted before the call. When processed, it calls `flush()` on
+each wrapped `FlushableLogDestination`.
 
-`FileLogDestination.flush()` opens the last written file and calls `FileDescriptor.sync()`. This improves durability before export, share, background transitions, or controlled shutdown.
+`FileLogDestination` assigns write failures to monotonic flush intervals. A flush
+returns `false` if any write in its barrier interval failed, even when a later write
+succeeded. Reporting that failed interval does not permanently poison later flushes.
+The file destination also opens the last written file and calls
+`FileDescriptor.sync()`. Therefore `true` means the barrier was processed without a
+known file-write failure and that sync call completed. It does not cover
+non-flushable destinations or promise permanent media persistence.
+
+Queue insertion and barrier waiting share one monotonic timeout deadline. The caller
+can time out while the worker continues finishing already accepted work. A blocking
+filesystem `fsync()`, file lock, or vendor storage call cannot be safely interrupted
+by the portable Java API, so `timeoutMillis` is not a hard cancellation guarantee for
+the underlying kernel operation.
 
 Important limitation: no Android file logger can fully guarantee logs after abrupt process death, native crash, OS kill, or power loss. The current implementation improves best-effort durability, especially for explicit flush and `ERROR` logs.
 
-When `autoFlushOnAppBackground` is true, `FileLogger` registers a `ComponentCallbacks2` callback on the application context and flushes on low-memory and UI-hidden trim signals. The callback does not require `FileLogger` to retain a `Context`.
+When `autoFlushOnAppBackground` is true, `FileLogger` registers a `ComponentCallbacks2`
+callback on the application context and schedules flush work on a dedicated daemon
+executor for low-memory and UI-hidden trim signals. The lifecycle callback does not
+wait for disk or OS file locks and does not require `FileLogger` to retain a `Context`.
 
 ## File Retention
 
-`FileRotationPolicy` handles:
+`FileRotationPolicy` and `GlobalLogRetentionPolicy` handle:
 
 - active file size rotation
 - backup count
-- max total log folder size
-- max backup age
+- global total size across eligible session log files
+- global log age across eligible inactive sessions
 
-The active file is preserved when retention trims old files. Cleanup targets backup files first, sorted by age.
+Every session with a live lease is preserved, including multiple sessions in one
+process and sessions owned by cooperating Android processes. Lease files are not log
+candidates. An unlocked stale lease left after process death is reclaimed. Eligible
+inactive files are removed in deterministic
+`lastModified`, then root-relative-path order. Only names recognized as FileLogger
+active/rotated files inside session-prefix directories are candidates; nested remote
+spools and unrelated files are excluded. Canonical containment is rechecked before
+deletion. If active data alone exceeds the limit, retention fails visibly instead of
+deleting live data or claiming success.
+
+Writes, rotation, retention, and FileLogger exports share a root coordinator. It uses
+a JVM mutex and an OS file lock, so cooperating FileLogger processes serialize these
+operations. This does not defend an app-private root against an untrusted process that
+ignores the lock protocol. Java canonical checks also cannot eliminate a malicious
+link-swap TOCTOU race; app-private internal storage remains part of the trust model.
 
 Current naming:
 
@@ -251,7 +287,9 @@ When `sessionLoggingEnabled` is true, logs are written under a per-session direc
 files/logs/session_20260928_121314_123/app_log.txt
 ```
 
-`LoggerConfig.sessionId` can be supplied by the host app when it wants to align logger output with an existing analytics, support, or crash-reporting session. If it is not supplied, the library creates a timestamp-based session id at init time.
+`LoggerConfig.sessionId` can be supplied by the host app when it wants to align logger output with an existing analytics, support, or crash-reporting session. If it is not supplied, the library creates a timestamp-based session id at init time. Session ids and file-name fields are single relative names. `logFolder` may be a nested relative path. Absolute paths, parent/current-directory traversal, and both separator styles are rejected. Canonical, component-aware containment is applied during init, writing, and `readLogs(sessionId)`.
+
+The canonical check detects a link that exists at resolution time. It cannot fully eliminate a link-swap TOCTOU race between validation and a later Java file open. The default Android app-private `filesDir` trust boundary is therefore required; applications must not make the log tree writable by untrusted processes.
 
 `FileLogger.session()` returns the active session metadata:
 
@@ -263,12 +301,16 @@ This makes support exports easier to reason about because each exported archive 
 
 ## Error Sync Fallback
 
-When `errorSyncFallbackEnabled` is true, `ERROR` logs bypass the async queue and write directly to the file destination, followed by a flush.
+When `errorSyncFallbackEnabled` is true, an `ERROR` submitted off the Android main
+thread first drains the async queue, writes directly to the file destination, and
+flushes. A failed internal ordering barrier is retained and reported by exactly one
+subsequent external `flush()` or `close()` call; a later successful write cannot hide it.
 
-Before the synchronous write, the async queue is drained while new writes are held.
-This preserves the file order of records submitted before and after the `ERROR` log.
-
-This reduces the chance of losing the final important log before a crash. It does not replace full crash capture; it is a lightweight reliability layer.
+On the Android main thread, `ERROR` is enqueued without waiting for disk, `fsync`, or an
+OS file lock. This avoids turning a logging call into an ANR source and preserves FIFO
+order with already queued records, but it weakens last-record crash durability: an
+immediate process death can lose that queued error. Explicit `flush()` remains a
+blocking API and should not be called on the main thread.
 
 ## Crash Capture
 
@@ -294,6 +336,9 @@ custom destination cannot accidentally read the unredacted exception message.
 `LoggerConfig.prod()` uses `LogRedactor.DEFAULT_SENSITIVE`. Development configuration
 keeps `LogRedactor.NONE` so local debugging remains explicit and unsurprising. Tags and
 attribute keys are kept intact for indexing and must be treated as non-sensitive names.
+With the default sensitive policy, recognized sensitive attribute keys cause the complete
+attribute value to be replaced. Pattern-based redaction covers known formats but cannot
+prove that arbitrary personal or application-specific data has been removed.
 
 Applications can bind collection to consent and account lifecycle:
 
@@ -305,21 +350,25 @@ FileLogger.deleteAllLogs(includeExports = true)
 ```
 
 Disabled collection rejects new records and crash snapshots. Full deletion pauses
-collection, flushes queued work, invokes `ErasableLogDestination` implementations,
-and removes session logs and optionally support exports. The remote destination uses
-this contract to clear both its memory queue and persistent spool.
+remote delivery before deleting data; it does not flush pending remote records to the
+network. The remote destination clears its memory queue and persistent spool and does
+not report success while an active upload or another process claim remains.
 
 ## Export And Redaction
 
-`FileLogger.exportLogs()` flushes the pipeline and writes current session log files to a zip archive.
+`FileLogger.exportLogs()` requires a successful flush barrier. It writes and validates
+a temporary ZIP, syncs it, and only then moves it to the final name while holding the
+storage coordinator. A failed export never exposes its partial temp file as the final
+archive. Java `renameTo` cannot provide an absolute power-loss durability guarantee on
+every filesystem, so a replacement backup is retained/recovered around the commit.
 
 ```kotlin
 val archive = FileLogger.exportLogs()
 ```
 
-Write-time redaction is the primary privacy boundary. Callers can additionally provide
-a `LogRedactor` to sanitize historical or externally-created lines before they enter
-the zip:
+Write-time redaction is the primary privacy boundary. Export additionally uses
+`LogRedactor.DEFAULT_SENSITIVE` by default so historical or externally-created lines
+are sanitized while they are copied into the ZIP. Source log files are not changed:
 
 ```kotlin
 FileLogger.exportLogs(
@@ -329,13 +378,15 @@ FileLogger.exportLogs(
 )
 ```
 
-A built-in preset covers common support-risk fields:
+A caller can explicitly disable export-time redaction, but this can disclose stored data:
 
 ```kotlin
-FileLogger.exportLogs(redactor = LogRedactor.DEFAULT_SENSITIVE)
+FileLogger.exportLogs(redactor = LogRedactor.NONE)
 ```
 
-It masks common email addresses, bearer tokens, password/token/secret/api-key style key-value fields, and long number sequences. Multiple redactors can be combined with `LogRedactor.chain(...)`.
+The built-in default recognizes common email addresses, bearer and JWT values, JSON and key-value secret fields, API keys, cookies, phone/address fields, and long number sequences. It is regex-based defense in depth rather than a complete data-loss-prevention engine. Multiple redactors can be combined with `LogRedactor.chain(...)` for application-specific identifiers.
+
+The OkHttp integration masks every URL query value in request, response, and failure logs. It redacts known email and JWT path segments and fully masks the path segment immediately following recognized credential operations such as `reset-password`, verification, activation, invitation, magic-link, and `token` routes. This path policy is heuristic: arbitrary application-specific opaque path secrets require a custom URL design or must not be logged. Request and response bodies remain disabled by default. When request-body logging is enabled, only repeatable text bodies are copied into an abortable bounded sink; one-shot, duplex, and binary bodies are skipped, and the request passed to OkHttp is never replaced. This bounds the logger-owned buffer, not allocations performed inside a custom `RequestBody`. Repeatable body implementations can be invoked once for logging and again by OkHttp. Collection state is checked lazily for the default `FileLogger`; custom `Logger` implementations do not expose a loggability signal.
 
 Every archive also includes `diagnostics.json` with app package, process name, session metadata, queue diagnostics, and the effective logger policy. This gives support and QA enough context to understand an archive without opening the app.
 
@@ -457,6 +508,41 @@ Unit tests cover:
   text bodies and sensitive-header masking.
 - `filelogger-remote` writes batches to an offline disk spool before gzip upload,
   retries with exponential backoff, and replays pending batches after restart.
+
+The remote batch lifecycle is `accepted -> memory bounded -> temporary file -> synced
+payload -> committed batch file -> uploader acknowledgement -> deletion`. Persist
+failure leaves the batch in bounded memory and makes the current flush/close fail.
+Later barriers retry it. Process death before local commit loses memory-only records;
+committed files survive and are replayed. Temporary files are never uploaded.
+
+New committed names contain a collision-resistant v2 UUID. Legacy names use a
+persistent spool namespace to derive a restart-stable identity. Corrupt or previously
+initialized-but-missing namespace metadata stops legacy upload instead of silently
+changing its idempotency identity. Temp creation is exclusive and cross-process persist
+operations use a spool lock. Unacknowledged
+committed files are not quota-evicted; a full spool rejects the new persistence attempt
+and reports failure. The payload file is
+`fsync`ed before same-directory `renameTo`. The Java API cannot prove directory-entry
+durability or atomic rename semantics for every filesystem; rename failure is treated
+as persistence failure, but sudden power loss immediately after a successful rename
+remains a filesystem-dependent risk. Before upload, a committed file is atomically
+renamed to a claim file and held with an OS file lock. Cooperating local workers cannot
+upload the same claim concurrently, and unlocked stale claims are recovered after a
+restart. A crash after remote acknowledgement but before local deletion can still
+cause duplicate delivery. `IdentifiedRemoteLogUploader` receives the stable batch ID
+and an attempt-specific ID. Optional cancellation applies only to that attempt and
+does not delete server data. Exactly-once effects still require server-side atomic
+deduplication; the library provides no standalone exactly-once guarantee.
+
+Remote spool payloads are bounded to 16 MiB on both persist and recovery reads. Empty
+or oversized files are retained, counted as failures, and skipped for the remainder of
+the current scan so later healthy batches are not starved. `flush()` remains `false`
+while rejected durable data remains. The current file format has no embedded checksum,
+so non-empty partial truncation is not always detectable. Consent revoke registers a
+process-local revocation before a new upload attempt can register; the durable pause
+marker is the cross-process linearization point. Successful revoke guarantees that no
+new cooperating process claim starts after completion, not that a server forgets a
+request already received.
 - `filelogger-ui` exposes a Compose viewer with search, level filtering, refresh,
   throwable rendering, and lazy scrolling.
 

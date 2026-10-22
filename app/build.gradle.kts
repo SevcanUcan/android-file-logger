@@ -67,6 +67,8 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(project(":filelogger"))
     implementation(project(":filelogger-ui"))
+    debugImplementation(project(":filelogger-remote"))
+    add("minifiedImplementation", project(":filelogger-remote"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

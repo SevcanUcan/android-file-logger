@@ -1,6 +1,6 @@
 # Android FileLogger
 
-Production-oriented Android file logging with bounded async writes, durable flush,
+Production-oriented Android file logging with bounded async writes, failure-aware flush,
 hybrid retention, structured context, write-time redaction, user-controlled collection,
 crash capture, support exports, diagnostics, and optional OkHttp, remote-upload,
 Crashlytics, OpenTelemetry, and Compose viewer modules.
@@ -55,13 +55,13 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.sevcanucan:filelogger-core:1.0.0-rc6") // KMP common code
-    implementation("io.github.sevcanucan:filelogger:1.0.0-rc6")
-    implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc6") // optional
-    implementation("io.github.sevcanucan:filelogger-remote:1.0.0-rc6") // optional
-    implementation("io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc6") // optional
-    implementation("io.github.sevcanucan:filelogger-otel:1.0.0-rc6")         // optional
-    implementation("io.github.sevcanucan:filelogger-ui:1.0.0-rc6")     // optional
+    implementation("io.github.sevcanucan:filelogger-core:1.0.0-rc7") // KMP common code
+    implementation("io.github.sevcanucan:filelogger:1.0.0-rc7")
+    implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc7") // optional
+    implementation("io.github.sevcanucan:filelogger-remote:1.0.0-rc7") // optional
+    implementation("io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7") // optional
+    implementation("io.github.sevcanucan:filelogger-otel:1.0.0-rc7")         // optional
+    implementation("io.github.sevcanucan:filelogger-ui:1.0.0-rc7")     // optional
 }
 ```
 
@@ -69,8 +69,9 @@ These are library modules, not separate applications. Gradle packages only the
 selected modules into the host application's single APK or AAB. Do not add every
 module unless the application uses it.
 
-`1.0.0-rc6` is the first Maven Central release candidate and includes the Kotlin Multiplatform
-core, Crashlytics destination, and OpenTelemetry destination. Final `1.0.0`
+`1.0.0-rc7` is the current Maven Central release candidate and includes the Kotlin Multiplatform
+core, Crashlytics destination, and OpenTelemetry destination. `1.0.0-rc6` remains the first
+Maven Central release candidate. Final `1.0.0`
 publication remains deferred until the candidate has completed external application
 validation. The coordinates become resolvable after the first Central Portal deployment
 is approved and published.
@@ -184,9 +185,10 @@ FileLogger.setCollectionEnabled(false, deleteExistingData = true)
 FileLogger.deleteAllLogs(includeExports = true)
 ```
 
-When collection is disabled, new records and crash snapshots are dropped. Deletion
-flushes and pauses the pipeline before removing persisted logs and asking erasable
-custom destinations, including the remote module, to clear pending data.
+When collection is disabled, new records and crash snapshots are dropped. Remote
+destinations persist their pause before consent withdrawal reports success. Deletion
+does not flush pending remote data to the network; it pauses delivery first, clears
+eligible local data, and fails if an active upload or foreign process claim remains.
 
 ## Reliability and retention
 
@@ -201,10 +203,24 @@ val config = LoggerConfig.Builder()
     .build()
 ```
 
-`flush()` drains the async queue and calls `FileDescriptor.sync()`. ERROR records
-first drain earlier async records, then write and sync directly so file order is
-preserved. No Android logger can guarantee persistence after power loss, native
-abort, or an immediate OS kill; these APIs provide best-effort durability.
+`FileLogger.flush()` places a barrier after records accepted before the call. It
+returns `true` only when those records reached the file destination without a write
+failure and `FileDescriptor.sync()` completed for the last written file. A failed
+interval returns `false`; after that failure has been reported, a later recovered
+interval may succeed. ERROR records first drain earlier async records, then write and
+sync directly so file order is preserved.
+
+The result does not cover non-flushable custom destinations and is not a permanent
+power-loss guarantee. Android, the filesystem, or storage hardware can still lose
+data after an abrupt process/native crash, OS kill, device reset, or hardware failure.
+
+With session logging, age and total-size retention apply globally to eligible
+FileLogger files below the configured log root. The active session is protected.
+Cleanup is deterministic by modification time and relative path. If the configured
+limit cannot be met without deleting active data, the write interval and its flush
+report failure. FileLogger storage operations use a process-local mutex plus an OS
+file lock; keep the root in app-private internal storage. Remote spool files are not
+retention candidates.
 
 ## Query stored logs
 
@@ -276,14 +292,19 @@ from an individual report.
 For a logs-only archive, use the lower-level export API:
 
 ```kotlin
-val archive = FileLogger.exportLogs(redactor = LogRedactor.DEFAULT_SENSITIVE)
+val archive = FileLogger.exportLogs()
 val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", archive)
 context.startActivity(FileLogger.createShareIntent(uri))
 ```
 
-Exports include `diagnostics.json`. The built-in redactor masks common emails,
-bearer tokens, secrets, passwords, API keys, and long number sequences. The host
-application owns its `FileProvider` policy.
+Exports include `diagnostics.json` and apply `LogRedactor.DEFAULT_SENSITIVE` by
+default, including to historical lines that were stored without write-time
+redaction. Export reads and sanitizes each line while writing the ZIP; it does not
+modify the source log files. `LogRedactor.NONE` remains an explicit opt-out and can
+expose stored secrets. The built-in policy covers common email, bearer/JWT,
+JSON secret-field, API-key, cookie, phone/address-field, and long-number patterns;
+regex redaction is defense in depth, not a guarantee that arbitrary sensitive data
+will be recognized. The host application owns its `FileProvider` policy.
 
 ## OkHttp
 
@@ -300,9 +321,33 @@ val client = OkHttpClient.Builder()
     .build()
 ```
 
-Bodies are disabled by default. Authorization, cookies, proxy authorization, and
-API key headers are redacted. Enabled text bodies are bounded and binary bodies are
-not rendered.
+Bodies are disabled by default. All URL query values are masked in request,
+response, and failure logs. Authorization, cookies, proxy authorization, and API
+key headers are redacted case-insensitively. Email and JWT path segments are
+redacted, and the segment following a recognized credential operation such as
+`reset-password` or `token` is fully masked. Arbitrary application-specific opaque
+path secrets cannot be identified reliably and should not be placed in URLs.
+Enabled repeatable text bodies use a
+bounded capture sink; one-shot, duplex, and binary bodies are not evaluated for
+logging, and the original request is always passed to OkHttp unchanged. The limit
+bounds FileLogger's capture buffer, but cannot prevent memory allocated internally
+by a custom `RequestBody`. A repeatable body may still be evaluated once for logging
+and once by OkHttp, so body logging should remain disabled for side-effecting body
+implementations. Disabled collection avoids body evaluation for the default
+`FileLogger`; a custom `Logger` has no loggability contract, so the interceptor
+cannot infer whether that logger will discard a message.
+
+## Safe file paths
+
+`logFolder` accepts nested relative paths. File names, session ids, session folder
+prefixes, and ZIP prefixes must be single relative names. Absolute paths, `..`,
+current-directory segments, and both slash styles used for traversal are rejected
+instead of normalized silently. Resolved paths are checked against their canonical
+root with path-component-aware containment, including `readLogs(sessionId)`.
+Canonical checks detect links that already exist when resolution occurs. As with
+ordinary Java file APIs, an attacker able to replace an app-private directory
+between validation and opening could still create a TOCTOU race; keep log roots in
+Android internal storage and do not expose them to untrusted writers.
 
 ## Remote destination
 
@@ -313,7 +358,7 @@ val remote = RemoteLogDestination(
         true
     },
     config = RemoteLogConfig(
-        spoolDirectory = File(cacheDir, "pending_logs"),
+        spoolDirectory = File(noBackupFilesDir, "pending_logs"),
         batchSize = 50,
         maxRetries = 3
     )
@@ -325,8 +370,62 @@ FileLogger.init(
 )
 ```
 
-Batches are committed to disk before upload, gzip-compressed by default, retried
-with exponential backoff, and retained for the next process when offline.
+Batches are written to a uniquely named temporary file, synced, and renamed to a
+committed `batch_*` file before upload. Existing `batch_*` files remain recoverable.
+The default policy never evicts an unacknowledged committed batch to make room. When
+the spool quota is full, the new memory batch is rejected for persistence, the barrier
+fails, and diagnostics report the failure while existing committed files remain.
+Accepted but not-yet-persisted records are bounded by the configured queue capacity
+plus one batch. A spool failure makes `flush()` return `false` and the in-memory batch
+is retried by a later flush or shutdown; an abrupt process kill before that retry can
+still lose that memory-only batch.
+
+Committed remote payloads have an internal 16 MiB safety ceiling. Empty or oversized
+files are not loaded into the heap or silently deleted, make delivery barriers fail,
+and remain available for operator inspection. A rejected file is skipped for the
+current scan so later healthy batches can still be delivered. The spool format does
+not contain a payload checksum, so arbitrary non-empty truncation cannot always be
+distinguished from valid content.
+
+For `RemoteLogDestination`, `flush() == true` means every record before the barrier
+was persisted, the application-provided uploader returned `true`, and no committed
+spool batch remained. It does not independently prove server-side durable storage:
+the uploader must return `true` only after the backend acknowledgement it considers
+authoritative. Offline local spooling therefore keeps the batch but returns `false`.
+Cooperating workers use an atomic claim name plus an OS file lock, so one committed
+file has one local uploader owner at a time. A process can still crash after the server
+accepts a batch but before the local claim is deleted. The same batch may then be sent
+again after restart. For idempotent uploads, opt in without changing `RemoteLogBatch`:
+
+```kotlin
+val remote = RemoteLogDestination.withIdentifiedUploader(
+    uploader = IdentifiedRemoteLogUploader { batch, context ->
+        api.upload(batch.payload, batch.contentEncoding, idempotencyKey = context.batchId)
+    },
+    config = RemoteLogConfig(File(noBackupFilesDir, "pending_logs"))
+)
+```
+
+`batchId` remains stable across retry, claim recovery, and restart. `attemptId` names
+one uploader invocation and changes for each retry. Optional
+`CancellableIdentifiedRemoteLogUploader` cancellation targets only that attempt; it
+does not recall data already received by a server. Exactly-once effects still require
+the backend to atomically deduplicate `batchId` values.
+
+`setCollectionEnabled(false, erasePendingData = false)` durably pauses new collection,
+persistence, claims, uploads, and retries while preserving already accepted data.
+Explicit re-enablement resumes those pending batches. With `erasePendingData = true`,
+success means local committed, temporary, and claim data was removed. An unresolved
+upload or another process claim makes the operation fail within its timeout.
+Within one destination, revoke linearizes before a new upload attempt can register.
+Across processes, the durable pause-marker update is the linearization point; another
+process may finish work started before that update, but no new cooperating claim may
+start after a successful revoke returns.
+
+Keep a durable remote spool under `noBackupFilesDir`. If an application intentionally
+uses `filesDir`, it must exclude that path from Android cloud backup and device transfer.
+The sample excludes `logs/`, `log_exports/`, and `pending_logs/`; applications using
+different folder names must add matching exclusions to their own backup rules.
 
 ## Crashlytics destination
 

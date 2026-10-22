@@ -35,9 +35,31 @@ internal class AsyncLogDestination(
         }
     }
 
-    override fun flush(timeoutMillis: Long): Boolean {
+    internal fun writeNonBlocking(record: LogRecord) {
         if (closed.get()) {
-            return awaitTermination(timeoutMillis)
+            droppedRecordCount.incrementAndGet()
+            return
+        }
+        startIfNeeded()
+        val item = QueueItem.Record(record)
+        if (!queue.offer(item)) {
+            if (removeOldestRecord()) {
+                droppedRecordCount.incrementAndGet()
+            }
+            if (!queue.offer(item)) {
+                droppedRecordCount.incrementAndGet()
+                return
+            }
+        }
+        if (closed.get() && queue.removeLastOccurrence(item)) {
+            droppedRecordCount.incrementAndGet()
+        }
+    }
+
+    override fun flush(timeoutMillis: Long): Boolean {
+        val deadlineNanos = deadlineNanos(timeoutMillis)
+        if (closed.get()) {
+            return awaitTermination(remainingMillis(deadlineNanos))
         }
 
         if (!started.get() && queue.isEmpty()) {
@@ -51,7 +73,7 @@ internal class AsyncLogDestination(
                 return@synchronized false
             }
             startIfNeeded()
-            offer(QueueItem.Flush(latch, result, timeoutMillis), timeoutMillis)
+            offer(QueueItem.Flush(latch, result, timeoutMillis), remainingMillis(deadlineNanos))
         }
 
         if (!queued) {
@@ -59,7 +81,7 @@ internal class AsyncLogDestination(
         }
 
         return try {
-            latch.await(timeoutMillis, TimeUnit.MILLISECONDS) && result.get()
+            latch.await(remainingMillis(deadlineNanos), TimeUnit.MILLISECONDS) && result.get()
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
             false
@@ -67,6 +89,7 @@ internal class AsyncLogDestination(
     }
 
     override fun close(timeoutMillis: Long): Boolean {
+        val deadlineNanos = deadlineNanos(timeoutMillis)
         val closeItem = synchronized(lifecycleLock) {
             if (!closed.compareAndSet(false, true)) {
                 return@synchronized null
@@ -81,11 +104,11 @@ internal class AsyncLogDestination(
             QueueItem.Close(timeoutMillis)
         }
 
-        if (closeItem != null && !offer(closeItem, timeoutMillis)) {
+        if (closeItem != null && !offer(closeItem, remainingMillis(deadlineNanos))) {
             workerThread?.interrupt()
         }
 
-        return awaitTermination(timeoutMillis)
+        return awaitTermination(remainingMillis(deadlineNanos))
     }
 
     internal fun droppedRecords(): Long = droppedRecordCount.get()
@@ -219,6 +242,15 @@ internal class AsyncLogDestination(
         }
     }
 
+    private fun deadlineNanos(timeoutMillis: Long): Long =
+        System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+
+    private fun remainingMillis(deadlineNanos: Long): Long {
+        val remainingNanos = deadlineNanos - System.nanoTime()
+        if (remainingNanos <= 0) return 0
+        return TimeUnit.NANOSECONDS.toMillis(remainingNanos).coerceAtLeast(1)
+    }
+
     private sealed interface QueueItem {
         data class Record(val record: LogRecord) : QueueItem
 
@@ -238,9 +270,11 @@ internal class AsyncLogDestination(
 
 internal class AsyncLogDiagnosticsDestination(
     private val asyncDestination: AsyncLogDestination
-) : CloseableLogDestination, DiagnosticLogDestination {
+) : CloseableLogDestination, DiagnosticLogDestination, NonBlockingLogDestination {
 
     override fun write(record: LogRecord) = asyncDestination.write(record)
+
+    override fun writeNonBlocking(record: LogRecord) = asyncDestination.writeNonBlocking(record)
 
     override fun flush(timeoutMillis: Long): Boolean = asyncDestination.flush(timeoutMillis)
 

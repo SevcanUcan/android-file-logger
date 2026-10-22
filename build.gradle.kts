@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     alias(libs.plugins.android.application) apply false
@@ -129,6 +131,45 @@ tasks.register("verifyMavenLocalPublications") {
                     }
                 check(expectedDependency in dependencyArtifactIds) {
                     "POM $artifactId is missing project dependency $expectedDependency"
+                }
+            }
+
+            if (artifactId == "filelogger-okhttp") {
+                val pomDependencies = document.getElementsByTagName("dependency")
+                    .let { nodes -> (0 until nodes.length).map { nodes.item(it) } }
+                    .map { dependency ->
+                        (0 until dependency.childNodes.length)
+                            .map { dependency.childNodes.item(it) }
+                            .associate { child -> child.nodeName to child.textContent.trim() }
+                    }
+                val okhttpDependency = pomDependencies.singleOrNull { dependency ->
+                    dependency["groupId"] == "com.squareup.okhttp3" &&
+                        dependency["artifactId"] == "okhttp"
+                }
+                check(okhttpDependency?.get("scope") == "compile") {
+                    "POM filelogger-okhttp must expose OkHttp with compile scope"
+                }
+
+                val moduleFile = File(artifactDirectory, "$baseName.module")
+                val moduleMetadata = JsonSlurper().parse(moduleFile) as Map<*, *>
+                val apiVariants = (moduleMetadata["variants"] as? List<*>)
+                    .orEmpty()
+                    .filterIsInstance<Map<*, *>>()
+                    .filter { variant ->
+                        (variant["attributes"] as? Map<*, *>)
+                            ?.get("org.gradle.usage") == "java-api"
+                    }
+                val okhttpIsApiDependency = apiVariants.any { variant ->
+                    (variant["dependencies"] as? List<*>)
+                        .orEmpty()
+                        .filterIsInstance<Map<*, *>>()
+                        .any { dependency ->
+                            dependency["group"] == "com.squareup.okhttp3" &&
+                                dependency["module"] == "okhttp"
+                        }
+                }
+                check(okhttpIsApiDependency) {
+                    "Gradle metadata filelogger-okhttp must expose OkHttp on a java-api variant"
                 }
             }
         }
