@@ -33,6 +33,8 @@ jobs:
   ios-core:
     name: Multiplatform core and publication (iOS)
     runs-on: macos-latest
+    env:
+      FILELOGGER_CONSUMER_M2: ${{ runner.temp }}/filelogger-consumer-m2
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -51,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew publishToMavenLocal --stacktrace 2>&1 | tee publication-build.log
+          ./gradlew -Dmaven.repo.local="$FILELOGGER_CONSUMER_M2" publishToMavenLocal --stacktrace 2>&1 | tee publication-build.log
       - name: Report publication build failure
         if: failure() && steps.local-publication.outcome == 'failure'
         shell: bash
@@ -63,13 +65,19 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew verifyMavenLocalPublications --stacktrace 2>&1 | tee publication-verification.log
+          ./gradlew -Dmaven.repo.local="$FILELOGGER_CONSUMER_M2" verifyMavenLocalPublications --stacktrace 2>&1 | tee publication-verification.log
       - name: Report publication verification failure
         if: failure() && steps.local-publication-verification.outcome == 'failure'
         shell: bash
         run: |
           reason=$(awk '/\* What went wrong:/{getline; print; exit}' publication-verification.log)
           echo "::error title=Local publication verification failed::${reason:-See the publication verification log}"
+
+      - name: Verify standalone OkHttp consumer
+        run: >-
+          ./gradlew -Dmaven.repo.local="$FILELOGGER_CONSUMER_M2"
+          -p consumer-tests/okhttp-consumer
+          :app:assembleDebug :app:assembleRelease --stacktrace
 
   device-tests:
     name: Device tests (API ${{ matrix.api-level }})

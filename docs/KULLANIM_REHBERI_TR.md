@@ -51,7 +51,7 @@ Kullanmadığınız modülü eklemezsiniz. Böylece gereksiz SDK ve kod uygulama
 Kütüphanenin mevcut sürümü:
 
 ```text
-1.0.0-rc6
+1.0.0-rc7
 ```
 
 `rc`, release candidate anlamına gelir. Kütüphane kapsamlı testlerden geçmiştir
@@ -59,7 +59,7 @@ fakat final `1.0.0` etiketi henüz verilmemiştir.
 
 > **Yayın durumu:** `filelogger`, `filelogger-core`, `filelogger-okhttp`,
 > `filelogger-remote`, `filelogger-crashlytics`, `filelogger-otel` ve
-> `filelogger-ui` modülleri `1.0.0-rc6` sürümünün parçalarıdır.
+> `filelogger-ui` modülleri `1.0.0-rc7` sürümünün parçalarıdır.
 
 ## 3. Maven Central Deposunu Kontrol Edin
 
@@ -108,7 +108,7 @@ app/build.gradle.kts
 ```kotlin
 dependencies {
     implementation(
-        "io.github.sevcanucan:filelogger:1.0.0-rc6"
+        "io.github.sevcanucan:filelogger:1.0.0-rc7"
     )
 }
 ```
@@ -117,7 +117,7 @@ Groovy karşılığı:
 
 ```groovy
 dependencies {
-    implementation 'io.github.sevcanucan:filelogger:1.0.0-rc6'
+    implementation 'io.github.sevcanucan:filelogger:1.0.0-rc7'
 }
 ```
 
@@ -127,32 +127,32 @@ zorunlu değildir:
 ```kotlin
 // OkHttp istek ve cevaplarını loglamak için:
 implementation(
-    "io.github.sevcanucan:filelogger-okhttp:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-okhttp:1.0.0-rc7"
 )
 
 // Logları kendi HTTPS sunucunuza göndermek için:
 implementation(
-    "io.github.sevcanucan:filelogger-remote:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-remote:1.0.0-rc7"
 )
 
 // Firebase Crashlytics'e WARN/ERROR göndermek için:
 implementation(
-    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7"
 )
 
 // OpenTelemetry pipeline'ına structured log göndermek için:
 implementation(
-    "io.github.sevcanucan:filelogger-otel:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-otel:1.0.0-rc7"
 )
 
 // Compose içinde log görüntüleme ekranı için:
 implementation(
-    "io.github.sevcanucan:filelogger-ui:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-ui:1.0.0-rc7"
 )
 
 // Android/JVM/iOS/Wasm ortak kodundan loglama için:
 implementation(
-    "io.github.sevcanucan:filelogger-core:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-core:1.0.0-rc7"
 )
 ```
 
@@ -650,7 +650,7 @@ Modülü ekleyin:
 
 ```kotlin
 implementation(
-    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7"
 )
 ```
 
@@ -692,7 +692,7 @@ Modülü ekleyin:
 
 ```kotlin
 implementation(
-    "io.github.sevcanucan:filelogger-otel:1.0.0-rc6"
+    "io.github.sevcanucan:filelogger-otel:1.0.0-rc7"
 )
 ```
 
@@ -844,7 +844,7 @@ Kontrol edin:
 
 - `settings.gradle.kts` içinde `google()` ve `mavenCentral()` var mı?
 - İnternet bağlantısı çalışıyor mu?
-- Sürüm tam olarak `1.0.0-rc6` mü?
+- Sürüm tam olarak `1.0.0-rc7` mi?
 - Gradle Offline Mode kapalı mı?
 - **Sync Project with Gradle Files** çalıştırıldı mı?
 
@@ -936,7 +936,7 @@ Ani güç kaybı, native crash, force-stop ve işletim sistemi tarafından anlı
 Bir kullanıcı yalnızca şunları yaparak başlayabilir:
 
 1. `settings.gradle.kts` içinde `mavenCentral()` bulunduğunu kontrol eder.
-2. `filelogger:1.0.0-rc6` bağımlılığını ekler.
+2. `filelogger:1.0.0-rc7` bağımlılığını ekler.
 3. `Application.onCreate()` içinde `FileLogger.install(...)` çağırır.
 4. İstediği yerde `FileLogger.e(...)` kullanır.
 5. ZIP paylaşmak için FileProvider tanımlar.

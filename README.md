@@ -55,13 +55,13 @@ repositories {
 }
 
 dependencies {
-    implementation("io.github.sevcanucan:filelogger-core:1.0.0-rc6") // KMP common code
-    implementation("io.github.sevcanucan:filelogger:1.0.0-rc6")
-    implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc6") // optional
-    implementation("io.github.sevcanucan:filelogger-remote:1.0.0-rc6") // optional
-    implementation("io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc6") // optional
-    implementation("io.github.sevcanucan:filelogger-otel:1.0.0-rc6")         // optional
-    implementation("io.github.sevcanucan:filelogger-ui:1.0.0-rc6")     // optional
+    implementation("io.github.sevcanucan:filelogger-core:1.0.0-rc7") // KMP common code
+    implementation("io.github.sevcanucan:filelogger:1.0.0-rc7")
+    implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc7") // optional
+    implementation("io.github.sevcanucan:filelogger-remote:1.0.0-rc7") // optional
+    implementation("io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7") // optional
+    implementation("io.github.sevcanucan:filelogger-otel:1.0.0-rc7")         // optional
+    implementation("io.github.sevcanucan:filelogger-ui:1.0.0-rc7")     // optional
 }
 ```
 
@@ -69,8 +69,9 @@ These are library modules, not separate applications. Gradle packages only the
 selected modules into the host application's single APK or AAB. Do not add every
 module unless the application uses it.
 
-`1.0.0-rc6` is the first Maven Central release candidate and includes the Kotlin Multiplatform
-core, Crashlytics destination, and OpenTelemetry destination. Final `1.0.0`
+`1.0.0-rc7` is the current Maven Central release candidate and includes the Kotlin Multiplatform
+core, Crashlytics destination, and OpenTelemetry destination. `1.0.0-rc6` remains the first
+Maven Central release candidate. Final `1.0.0`
 publication remains deferred until the candidate has completed external application
 validation. The coordinates become resolvable after the first Central Portal deployment
 is approved and published.
