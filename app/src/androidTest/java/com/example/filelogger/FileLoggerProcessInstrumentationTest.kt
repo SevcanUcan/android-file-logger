@@ -88,7 +88,7 @@ class FileLoggerProcessInstrumentationTest {
         val directory = File(context.filesDir, folder)
 
         context.startService(
-            Intent(context, FileLoggerProcessTestService::class.java)
+            Intent(context, FileLoggerCrashProcessTestService::class.java)
                 .setAction(FileLoggerProcessTestService.ACTION_CRASH)
                 .putExtra(FileLoggerProcessTestService.EXTRA_FOLDER, folder)
         )

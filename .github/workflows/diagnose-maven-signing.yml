@@ -11,8 +11,6 @@ jobs:
   diagnose:
     runs-on: macos-latest
     timeout-minutes: 30
-    env:
-      GNUPGHOME: ${{ runner.temp }}/diagnose-gnupg
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -26,12 +24,14 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
         with:
           validate-wrappers: true
 
       - name: Create ephemeral diagnostic signing key
         shell: bash
+        env:
+          GNUPGHOME: ${{ runner.temp }}/diagnose-gnupg
         run: |
           set -euo pipefail
           mkdir -m 700 -p "$GNUPGHOME"
@@ -64,6 +64,8 @@ jobs:
 
       - name: Verify generated signatures
         shell: bash
+        env:
+          GNUPGHOME: ${{ runner.temp }}/diagnose-gnupg
         run: |
           set -euo pipefail
           VERSION="$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2)"

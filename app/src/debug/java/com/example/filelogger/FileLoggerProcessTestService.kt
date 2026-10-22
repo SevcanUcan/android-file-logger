@@ -11,7 +11,7 @@ import com.filelogger.LoggerConfig
 import java.io.File
 import java.io.FileOutputStream
 
-class FileLoggerProcessTestService : Service() {
+open class FileLoggerProcessTestService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -107,3 +107,5 @@ class FileLoggerProcessTestService : Service() {
         private const val PROCESS_TEST_TIMEOUT_MILLIS = 60_000L
     }
 }
+
+class FileLoggerCrashProcessTestService : FileLoggerProcessTestService()
