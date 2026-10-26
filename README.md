@@ -1,12 +1,14 @@
 # Android FileLogger
 
+[English](README.md) | [Türkçe](docs/KULLANIM_REHBERI_TR.md)
+
 Production-oriented Android file logging with bounded async writes, failure-aware flush,
 hybrid retention, structured context, write-time redaction, user-controlled collection,
 crash capture, support exports, diagnostics, and optional OkHttp, remote-upload,
 Crashlytics, OpenTelemetry, and Compose viewer modules.
 
-Türkçe ve başlangıç seviyesinde entegrasyon anlatımı için
-[Sıfırdan Kurulum ve Kullanım Rehberi](docs/KULLANIM_REHBERI_TR.md) belgesine bakın.
+For a step-by-step Turkish integration guide, see
+[Sıfırdan Kurulum ve Kullanım Rehberi](docs/KULLANIM_REHBERI_TR.md).
 
 ## Why not only Logcat or Timber?
 
@@ -29,54 +31,77 @@ to Timber rather than replacing an application's existing logging facade.
 | `filelogger-ui` | Compose viewer with search and level filters |
 | `app` | Interactive sample and device reliability tests |
 
-## Install
+## Requirements
 
-For a source checkout:
+- Android `minSdk 24` or newer
+- JDK 17 recommended for current Android builds
+- Gradle Kotlin DSL or Groovy DSL
+- Kotlin Multiplatform targets for `filelogger-core`: Android, JVM, iOS Arm64,
+  iOS Simulator Arm64, and Wasm JS
+
+## Install from Maven Central
+
+`1.0.0-rc7` is published and publicly available from Maven Central. In the
+project-level `settings.gradle.kts`, make sure Maven Central is enabled:
 
 ```kotlin
-dependencies {
-    implementation(project(":filelogger-core")) // common Kotlin code
-    implementation(project(":filelogger"))
-    implementation(project(":filelogger-okhttp")) // optional
-    implementation(project(":filelogger-remote")) // optional
-    implementation(project(":filelogger-crashlytics")) // optional
-    implementation(project(":filelogger-otel"))        // optional
-    implementation(project(":filelogger-ui"))     // optional
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
 }
 ```
 
-Maven Central is the primary distribution channel. Android projects normally
-already have `mavenCentral()` in `dependencyResolutionManagement.repositories`:
+Then add the Android library to the application module's `app/build.gradle.kts`:
 
 ```kotlin
-repositories {
-    google()
-    mavenCentral()
-}
-
 dependencies {
-    implementation("io.github.sevcanucan:filelogger-core:1.0.0-rc7") // KMP common code
     implementation("io.github.sevcanucan:filelogger:1.0.0-rc7")
-    implementation("io.github.sevcanucan:filelogger-okhttp:1.0.0-rc7") // optional
-    implementation("io.github.sevcanucan:filelogger-remote:1.0.0-rc7") // optional
-    implementation("io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7") // optional
-    implementation("io.github.sevcanucan:filelogger-otel:1.0.0-rc7")         // optional
-    implementation("io.github.sevcanucan:filelogger-ui:1.0.0-rc7")     // optional
 }
 ```
 
-These are library modules, not separate applications. Gradle packages only the
-selected modules into the host application's single APK or AAB. Do not add every
-module unless the application uses it.
+Groovy DSL projects use the same repository in `settings.gradle` and this dependency
+in `app/build.gradle`:
 
-`1.0.0-rc7` is the current Maven Central release candidate and includes the Kotlin Multiplatform
-core, Crashlytics destination, and OpenTelemetry destination. `1.0.0-rc6` remains the first
-Maven Central release candidate. Final `1.0.0`
-publication remains deferred until the candidate has completed external application
-validation. The coordinates become resolvable after the first Central Portal deployment
-is approved and published.
+```groovy
+dependencies {
+    implementation 'io.github.sevcanucan:filelogger:1.0.0-rc7'
+}
+```
 
-JitPack remains available as an alternative for existing users:
+`filelogger` already brings `filelogger-core` transitively. Add only the optional
+modules your application uses:
+
+| Feature | Optional dependency |
+| --- | --- |
+| OkHttp request/response logging | `io.github.sevcanucan:filelogger-okhttp:1.0.0-rc7` |
+| HTTPS batch upload | `io.github.sevcanucan:filelogger-remote:1.0.0-rc7` |
+| Firebase Crashlytics delivery | `io.github.sevcanucan:filelogger-crashlytics:1.0.0-rc7` |
+| OpenTelemetry delivery | `io.github.sevcanucan:filelogger-otel:1.0.0-rc7` |
+| Compose log viewer | `io.github.sevcanucan:filelogger-ui:1.0.0-rc7` |
+
+These modules are libraries, not separate applications. Gradle packages the selected
+modules into the host application's single APK or AAB.
+
+### Migrating from JitPack
+
+Replace the old dependency:
+
+```kotlin
+implementation("com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4")
+```
+
+with the Maven Central coordinate:
+
+```kotlin
+implementation("io.github.sevcanucan:filelogger:1.0.0-rc7")
+```
+
+Remove the JitPack repository if no other dependency needs it. Do not include the
+JitPack and Maven Central variants of the same module together. JitPack remains
+available for existing installations:
 
 ```kotlin
 repositories { maven("https://jitpack.io") }
@@ -94,6 +119,18 @@ Maintainers can follow the [Maven Central release guide](docs/MAVEN_CENTRAL_RELE
 level filtering, failure-isolated composite destinations, and a thread-safe bounded
 memory destination. It publishes Gradle module metadata plus Android, JVM, iOS
 device, iOS simulator, and Wasm artifacts.
+
+Add it to the shared source set of a Kotlin Multiplatform project:
+
+```kotlin
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("io.github.sevcanucan:filelogger-core:1.0.0-rc7")
+        }
+    }
+}
+```
 
 ```kotlin
 val recentLogs = BoundedMemoryLogDestination(capacity = 200)
@@ -126,6 +163,10 @@ CI coverage, and current platform limitations.
 Initialize once from `Application` using explicit environment defaults:
 
 ```kotlin
+import android.app.Application
+import com.filelogger.FileLogger
+import com.filelogger.LoggerConfig
+
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
@@ -137,11 +178,20 @@ class App : Application() {
 }
 ```
 
+Register the class in `app/src/main/AndroidManifest.xml`:
+
+```xml
+<application
+    android:name=".App"
+    ... >
+</application>
+```
+
 ```kotlin
 FileLogger.d("Startup", "Application ready")
 FileLogger.i("Startup", "Initial data loaded")
 FileLogger.w("Sync", "Retry scheduled")
-FileLogger.e("Checkout", "Payment failed", throwable)
+FileLogger.e("Operation", "An error occurred during the operation", throwable)
 ```
 
 `dev()` uses readable DEBUG logs and longer retention. `prod()` uses WARN+ JSON
@@ -256,7 +306,11 @@ val archive = FileLogger.createSupportReport(
         )
     )
 )
-val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", archive)
+val uri = FileProvider.getUriForFile(
+    context,
+    "${context.packageName}.filelogger.files",
+    archive
+)
 context.startActivity(FileLogger.createShareIntent(uri))
 ```
 
@@ -293,7 +347,11 @@ For a logs-only archive, use the lower-level export API:
 
 ```kotlin
 val archive = FileLogger.exportLogs()
-val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", archive)
+val uri = FileProvider.getUriForFile(
+    context,
+    "${context.packageName}.filelogger.files",
+    archive
+)
 context.startActivity(FileLogger.createShareIntent(uri))
 ```
 
@@ -305,6 +363,33 @@ expose stored secrets. The built-in policy covers common email, bearer/JWT,
 JSON secret-field, API-key, cookie, phone/address-field, and long-number patterns;
 regex redaction is defense in depth, not a guarantee that arbitrary sensitive data
 will be recognized. The host application owns its `FileProvider` policy.
+
+Declare the matching provider in the host application's manifest:
+
+```xml
+<provider
+    android:name="androidx.core.content.FileProvider"
+    android:authorities="${applicationId}.filelogger.files"
+    android:exported="false"
+    android:grantUriPermissions="true">
+    <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/filelogger_paths" />
+</provider>
+```
+
+Create `app/src/main/res/xml/filelogger_paths.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path
+        name="filelogger_exports"
+        path="log_exports/" />
+</paths>
+```
+
+The manifest authority and the authority passed to `getUriForFile()` must match.
 
 ## OkHttp
 

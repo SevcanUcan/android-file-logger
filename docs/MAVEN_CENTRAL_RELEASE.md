@@ -3,14 +3,24 @@
 This document is for FileLogger maintainers. Consumers only need the Maven Central
 coordinates shown in the main README.
 
+## Current release status
+
+`1.0.0-rc7` is published and publicly resolvable from Maven Central.
+
+- Release commit: `2c6509d3eea5c858960eca273ea69a85448d0f63`
+- Immutable Git tag: `1.0.0-rc7`
+- Central Portal result: `PUBLISHED`
+
 ## Publication architecture
 
 - Group: `io.github.sevcanucan`
-- Candidate version: `1.0.0-rc7`
+- Current published version: `1.0.0-rc7`
 - Portal: Sonatype Central Portal
 - Gradle integration: `com.vanniktech.maven.publish` version `0.35.0`
 - Signing: Gradle Signing Plugin with an ASCII-armored in-memory OpenPGP key
-- Release control: manual GitHub Actions dispatch from a version tag
+- Release control: manual GitHub Actions dispatch from the default branch with a
+  `release_tag` input; the workflow verifies the immutable tag and checks out its
+  peeled commit before the protected publishing environment is entered
 - Final release: manual approval in Central Portal after upload validation
 - Release host: macOS, so Android, JVM, iOS, and Wasm variants are uploaded together
 
@@ -102,14 +112,14 @@ Then run:
 
 Never put credentials in this repository's `gradle.properties`.
 
-## First release procedure
+## Publishing a new version
 
-1. Confirm that `VERSION_NAME` is `1.0.0-rc7` and the changelog is ready.
+1. Choose an unused `<version>` and update `VERSION_NAME` and the changelog.
 2. Run the complete local verification commands above.
 3. Merge the reviewed publishing branch into `main`.
-4. Create and push the exact tag `1.0.0-rc7` from the reviewed main commit.
+4. Create and push the exact `<version>` tag from the reviewed main commit.
 5. In GitHub Actions, open **Publish Maven Central**.
-6. Select the `1.0.0-rc7` tag and run the workflow manually.
+6. Run the workflow from `main` and enter the exact `<version>` as `release_tag`.
 7. Approve the protected `maven-central` environment deployment.
 8. Wait for tests, signed local verification, and Central Portal upload to pass.
 9. Open Central Portal and inspect the deployment validation results.
