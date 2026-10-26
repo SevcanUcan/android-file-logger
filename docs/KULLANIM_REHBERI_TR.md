@@ -1,5 +1,7 @@
 # Android FileLogger: Sıfırdan Kurulum ve Kullanım Rehberi
 
+[English README](../README.md) | [Türkçe rehber](KULLANIM_REHBERI_TR.md)
+
 Bu rehber, Android projesine daha önce harici bir kütüphane eklememiş birinin
 bile FileLogger'ı kurup kullanabilmesi için hazırlanmıştır.
 
@@ -55,7 +57,8 @@ Kütüphanenin mevcut sürümü:
 ```
 
 `rc`, release candidate anlamına gelir. Kütüphane kapsamlı testlerden geçmiştir
-fakat final `1.0.0` etiketi henüz verilmemiştir.
+fakat final `1.0.0` etiketi henüz verilmemiştir. `1.0.0-rc7` Maven Central'da
+yayımlanmıştır ve yeni projeler tarafından doğrudan indirilebilir.
 
 > **Yayın durumu:** `filelogger`, `filelogger-core`, `filelogger-okhttp`,
 > `filelogger-remote`, `filelogger-crashlytics`, `filelogger-otel` ve
@@ -159,6 +162,28 @@ implementation(
 Dosyayı düzenledikten sonra Android Studio'nun üst kısmındaki **Sync Now**
 bağlantısına basın. Senkronizasyon bitmeden diğer adımlara geçmeyin.
 
+### JitPack'ten Maven Central'a geçiş
+
+Eski bağımlılık satırını:
+
+```kotlin
+implementation(
+    "com.github.SevcanUcan.android-file-logger:filelogger:1.0.0-rc4"
+)
+```
+
+Maven Central koordinatıyla değiştirin:
+
+```kotlin
+implementation(
+    "io.github.sevcanucan:filelogger:1.0.0-rc7"
+)
+```
+
+Başka bir bağımlılık kullanmıyorsa `https://jitpack.io` repository tanımını da
+kaldırabilirsiniz. Aynı FileLogger modülünün JitPack ve Maven Central sürümlerini
+birlikte eklemeyin.
+
 ### JitPack alternatifi
 
 Eski kurulumunu hemen değiştiremeyen projeler için JitPack desteği korunur:
@@ -245,7 +270,7 @@ import com.filelogger.FileLogger
 FileLogger.d("MainActivity", "Ana ekran açıldı")
 FileLogger.i("Sync", "Senkronizasyon başladı")
 FileLogger.w("Network", "İstek tekrar denenecek")
-FileLogger.e("Payment", "Ödeme sırasında hata oluştu", exception)
+FileLogger.e("Operation", "İşlem sırasında hata oluştu", exception)
 ```
 
 Seviyelerin anlamı:
